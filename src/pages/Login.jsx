@@ -58,11 +58,22 @@ const Login = () => {
                                 <input
                                     type="email"
                                     value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
+                                    list="email-options"
+                                    onChange={(e) => {
+                                        const val = e.target.value;
+                                        setEmail(val);
+                                        if (val === 'admin@medplus.com' || val === 'decoder@medplus.com') {
+                                            setPassword('password123');
+                                        }
+                                    }}
                                     className="block w-full pl-10 pr-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-sm"
                                     placeholder="user@medplus.com"
                                     required
                                 />
+                                <datalist id="email-options">
+                                    <option value="admin@medplus.com">Admin Access</option>
+                                    <option value="decoder@medplus.com">Decoder Access</option>
+                                </datalist>
                             </div>
                         </div>
 
