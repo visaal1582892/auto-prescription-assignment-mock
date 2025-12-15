@@ -161,6 +161,8 @@ const DecoderWorkflow = () => {
                 // In a real app, we'd queue this specific ID
                 console.log(`Queued Order ID: ${location.state.orderId}`);
             }
+            // Clear the state so it doesn't re-trigger on reload
+            navigate(location.pathname, { replace: true, state: {} });
         } else if (role === 'cluster_head' && !sessionStorage.getItem('init_done')) {
             // Only set default if not already initialized or saved
             // Actually, if we use the useState lazy init with sessionStorage, we just need to ensure we don't overwrite it here 
