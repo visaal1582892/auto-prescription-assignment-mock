@@ -68,7 +68,7 @@ const Login = () => {
                                     onChange={(e) => {
                                         const val = e.target.value;
                                         setEmail(val);
-                                        if (val === 'admin@medplus.com' || val === 'decoder@medplus.com') {
+                                        if (val === 'admin@medplus.com' || val === 'decoder@medplus.com' || val === 'clusterhead@medplus.com') {
                                             setPassword('password123');
                                         }
                                     }}
