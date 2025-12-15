@@ -129,6 +129,10 @@ const DecoderWorkflow = () => {
                 // Load new data just before showing the main screen
                 setTimeout(() => {
                     loadNextPrescription();
+                    // Initialize timer with random "lag" (e.g. 2-5 mins ago)
+                    const randomLag = Math.floor(Math.random() * (300000 - 120000) + 120000);
+                    setAssignmentStartTime(Date.now() - randomLag);
+
                     setAssignmentAlert(false);
                     setWorkflowStatus('active');
                     document.title = "Decoder Dashboard";
@@ -145,6 +149,41 @@ const DecoderWorkflow = () => {
     useEffect(() => {
         sessionStorage.setItem('workflowStatus', workflowStatus);
     }, [workflowStatus]);
+
+    // Timer Logic
+    const [assignmentStartTime, setAssignmentStartTime] = useState(() => {
+        const saved = sessionStorage.getItem('assignmentStartTime');
+        return saved ? parseInt(saved, 10) : null;
+    });
+    const [elapsedTime, setElapsedTime] = useState('00:00');
+
+    useEffect(() => {
+        sessionStorage.setItem('assignmentStartTime', assignmentStartTime || '');
+    }, [assignmentStartTime]);
+
+    useEffect(() => {
+        let interval;
+        // Logic: specific time or "running"
+        if (workflowStatus === 'active' && assignmentStartTime) {
+            // Function to update time
+            const updateTimer = () => {
+                const now = Date.now();
+                const diff = Math.floor((now - assignmentStartTime) / 1000);
+                if (diff < 0) {
+                    // Should not happen if start time is past
+                    setElapsedTime('00:00');
+                    return;
+                }
+                const minutes = Math.floor(diff / 60).toString().padStart(2, '0');
+                const seconds = (diff % 60).toString().padStart(2, '0');
+                setElapsedTime(`${minutes}:${seconds}`);
+            };
+
+            updateTimer(); // Initial call
+            interval = setInterval(updateTimer, 1000);
+        }
+        return () => clearInterval(interval);
+    }, [workflowStatus, assignmentStartTime]);
 
     // User Role Logic
     const [userRole, setUserRole] = useState('decoder');
@@ -618,14 +657,9 @@ const DecoderWorkflow = () => {
                         </div>
                         <div className="h-4 w-px bg-slate-300 mx-1" />
                         <div className="flex items-center gap-4 text-slate-500 text-xs">
-                            <div className="flex items-center gap-1">
-                                <span className="font-medium">Created:</span>
-                                <span className="font-mono">14:20</span>
-                            </div>
-                            <div className="flex items-center gap-1">
-                                <span className="font-medium">Arrived:</span>
-                                <span className="font-mono">14:22</span>
-                                <span className="text-red-500 font-bold ml-1">(+2m Lag)</span>
+                            <div className="flex items-center gap-2 bg-indigo-50 px-3 py-1.5 rounded-md border border-indigo-100 text-indigo-700 font-mono font-bold">
+                                <Clock size={14} className="animate-pulse" />
+                                <span>Total Time: {elapsedTime}</span>
                             </div>
                         </div>
                     </div>
@@ -633,7 +667,10 @@ const DecoderWorkflow = () => {
                     <div className="flex items-center gap-3">
 
                         <button
-                            onClick={() => navigate('/')}
+                            onClick={() => {
+                                sessionStorage.clear();
+                                navigate('/');
+                            }}
                             className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 transition-colors"
                             title="Logout"
                         >
@@ -749,7 +786,7 @@ const DecoderWorkflow = () => {
                 {/* Footer Actions */}
                 <div className="p-4 bg-white border-t border-slate-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
                     <div className="flex items-center gap-3">
-                        {isSeniorDecoder && (
+                        {userRole === 'cluster_head' && (
                             <button
                                 onClick={handleTransfer}
                                 className="mr-auto text-slate-500 hover:text-slate-700 text-sm font-medium px-4 py-2.5 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors"
@@ -758,9 +795,11 @@ const DecoderWorkflow = () => {
                             </button>
                         )}
 
+
+
                         {/* Unified Submit Dropdown for All Roles */}
                         {/* Split Button Implementation */}
-                        <div className="relative flex-[2] flex gap-0.5 shadow-lg shadow-slate-200 rounded-lg transition-all active:scale-[0.98]">
+                        <div className="relative w-full max-w-sm ml-auto flex gap-0.5 shadow-lg shadow-slate-200 rounded-lg transition-all active:scale-[0.98]">
                             <button
                                 onClick={currentOption.handler}
                                 className={`flex-1 ${currentOption.color} text-white px-4 py-2.5 rounded-l-lg font-bold text-sm flex items-center justify-center gap-2 transition-all`}
