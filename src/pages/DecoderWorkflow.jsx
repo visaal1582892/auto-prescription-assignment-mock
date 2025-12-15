@@ -47,7 +47,9 @@ const DecoderWorkflow = () => {
 
 
     // Workflow State
-    const [workflowStatus, setWorkflowStatus] = useState('waiting'); // 'waiting' | 'active' | 'dashboard'
+    const [workflowStatus, setWorkflowStatus] = useState(() => {
+        return sessionStorage.getItem('workflowStatus') || 'waiting';
+    }); // 'waiting' | 'active' | 'dashboard'
     const [assignmentAlert, setAssignmentAlert] = useState(false);
 
     const playAlertSound = () => {
@@ -139,6 +141,11 @@ const DecoderWorkflow = () => {
         }
     }, [workflowStatus]);
 
+    // Persist State
+    useEffect(() => {
+        sessionStorage.setItem('workflowStatus', workflowStatus);
+    }, [workflowStatus]);
+
     // User Role Logic
     const [userRole, setUserRole] = useState('decoder');
     const [showSubmitMenu, setShowSubmitMenu] = useState(false);
@@ -154,9 +161,30 @@ const DecoderWorkflow = () => {
                 // In a real app, we'd queue this specific ID
                 console.log(`Queued Order ID: ${location.state.orderId}`);
             }
-        } else if (role === 'cluster_head') {
-            setWorkflowStatus('dashboard');
+        } else if (role === 'cluster_head' && !sessionStorage.getItem('init_done')) {
+            // Only set default if not already initialized or saved
+            // Actually, if we use the useState lazy init with sessionStorage, we just need to ensure we don't overwrite it here 
+            // unless it's a fresh mounting where we *want* to force dashboard (e.g. first login).
+            // But first login comes with empty session.
+            // If I reload, session has 'active'. useState gets 'active'. 
+            // !sessionStorage.getItem('workflowStatus') will be false. So we skip this. Correct.
+            // But wait, if I reload, useState runs first. 
+            // Then effect runs. 
+            // If I do `!sessionStorage.getItem('workflowStatus')`, it might check the value I JUST saved in the previous effect?
+            // No, effects run after render.
+
+            // Let's use a separate flag or just relying on the fact that if useState found something, it's good.
+            // If useState found 'waiting' (default), was it because it was 'waiting' or because it was empty?
+            // If empty, we want 'dashboard'.
+            // If 'waiting' (explicit), we want 'waiting'.
+
+            // Safer check:
+            const saved = sessionStorage.getItem('workflowStatus');
+            if (!saved) {
+                setWorkflowStatus('dashboard');
+            }
         }
+        sessionStorage.setItem('init_done', 'true'); // simple marker? No, logic above is enough if we trust useState.
     }, [location.state]);
 
     const [submitAction, setSubmitAction] = useState('next');
@@ -252,7 +280,10 @@ const DecoderWorkflow = () => {
                                         JD
                                     </div>
                                     <button
-                                        onClick={() => navigate('/')}
+                                        onClick={() => {
+                                            sessionStorage.clear();
+                                            navigate('/');
+                                        }}
                                         className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors ml-2"
                                         title="Sign Out"
                                     >

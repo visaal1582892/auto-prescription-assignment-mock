@@ -17,6 +17,7 @@ const Login = () => {
             setIsLoading(false);
             // Mock successful login
             if (email && password) {
+                sessionStorage.clear(); // Ensure fresh session
                 localStorage.setItem('isAuthenticated', 'true');
                 // Redirect based on role (simulated)
                 if (email === 'clusterhead@medplus.com') {
