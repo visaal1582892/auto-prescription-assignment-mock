@@ -153,10 +153,10 @@ const SupervisorDashboard = () => {
     };
 
     const leaderboard = [
-        { name: "Alice Cooper", total: 145, perHour: 42, accuracy: "99.5%", greenCount: 24, greenStatus: "Expert" },
-        { name: "Bob Martin", total: 132, perHour: 38, accuracy: "98.2%", greenCount: 15, greenStatus: "Active" },
-        { name: "Charlie Day", total: 128, perHour: 36, accuracy: "99.1%", greenCount: 8, greenStatus: "Active" },
-        { name: "Diana Prince", total: 120, perHour: 35, accuracy: "99.8%", greenCount: 32, greenStatus: "Expert" },
+        { name: "Alice Cooper", total: 145, perHour: 42, greenCount: 24, greenStatus: "Expert" },
+        { name: "Bob Martin", total: 132, perHour: 38, greenCount: 15, greenStatus: "Active" },
+        { name: "Charlie Day", total: 128, perHour: 36, greenCount: 8, greenStatus: "Active" },
+        { name: "Diana Prince", total: 120, perHour: 35, greenCount: 32, greenStatus: "Expert" },
     ];
 
     // Filter alerts > 5 mins
@@ -428,7 +428,6 @@ const SupervisorDashboard = () => {
                                             <div>
                                                 <div className="text-sm font-medium text-slate-800">{user.name}</div>
                                                 <div className="text-[10px] text-slate-500 flex gap-2">
-                                                    <span>Acc: {user.accuracy}</span>
                                                     <span className="text-emerald-600 font-bold">Green: {user.greenCount}</span>
                                                 </div>
                                             </div>
@@ -453,18 +452,7 @@ const SupervisorDashboard = () => {
                                         <div className="text-[10px] text-red-600">Returned</div>
                                     </div>
                                 </div>
-                                <div className="mt-3 bg-indigo-50 p-2 rounded border border-indigo-100">
-                                    <div className="flex justify-between text-xs mb-1">
-                                        <span className="text-indigo-700 font-medium">Accuracy Rate</span>
-                                        <span className="text-indigo-700 font-bold">98.4%</span>
-                                    </div>
-                                    <div className="w-full bg-indigo-200 rounded-full h-1.5">
-                                        <div className="bg-indigo-600 h-1.5 rounded-full w-[98.4%]"></div>
-                                    </div>
-                                    <div className="text-[10px] text-indigo-500 mt-1 text-center">
-                                        142 Edits / 8900 Decodes
-                                    </div>
-                                </div>
+
                             </div>
                         </div>
                     </div>
@@ -522,14 +510,11 @@ const SupervisorDashboard = () => {
                                                 <span className="text-sm text-slate-700">{selectedAlert.assignedTo}</span>
                                             </div>
                                         </div>
-                                        <div>
-                                            <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Patient</h3>
-                                            <span className="text-sm text-slate-700">{selectedAlert.patientName}</span>
-                                        </div>
+
                                         <div>
                                             <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Received At</h3>
                                             <span className="text-sm text-slate-700 font-mono">
-                                                {new Date(selectedAlert.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                                                {new Date(selectedAlert.startTime).toLocaleString()}
                                             </span>
                                         </div>
                                         <div>
@@ -543,15 +528,15 @@ const SupervisorDashboard = () => {
                                         <div className="space-y-2">
                                             <div className="flex justify-between text-xs text-slate-500">
                                                 <span>Arrived in Queue</span>
-                                                <span className="font-mono">{new Date(selectedAlert.startTime - 60000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                                <span className="font-mono">{new Date(selectedAlert.startTime - 60000).toLocaleString()}</span>
                                             </div>
                                             <div className="flex justify-between text-xs text-slate-500">
                                                 <span>Assigned to {selectedAlert.assignedTo}</span>
-                                                <span className="font-mono">{new Date(selectedAlert.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                                <span className="font-mono">{new Date(selectedAlert.startTime).toLocaleString()}</span>
                                             </div>
                                             <div className="flex justify-between text-xs text-red-600 font-bold">
-                                                <span>SLA Breach Detected</span>
-                                                <span className="font-mono">{new Date(selectedAlert.startTime + 5 * 60000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                                <span>Crit. Time Exceeded</span>
+                                                <span className="font-mono">{new Date(selectedAlert.startTime + 5 * 60000).toLocaleString()}</span>
                                             </div>
                                         </div>
                                     </div>

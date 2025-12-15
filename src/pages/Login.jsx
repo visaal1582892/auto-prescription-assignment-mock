@@ -19,9 +19,14 @@ const Login = () => {
             if (email && password) {
                 localStorage.setItem('isAuthenticated', 'true');
                 // Redirect based on role (simulated)
-                if (email.includes('admin')) {
+                if (email === 'clusterhead@medplus.com') {
+                    localStorage.setItem('userRole', 'cluster_head');
+                    navigate('/decoder');
+                } else if (email.includes('admin')) {
+                    localStorage.setItem('userRole', 'supervisor');
                     navigate('/supervisor');
                 } else {
+                    localStorage.setItem('userRole', 'decoder');
                     navigate('/decoder');
                 }
             } else {
@@ -73,6 +78,7 @@ const Login = () => {
                                 <datalist id="email-options">
                                     <option value="admin@medplus.com">Admin Access</option>
                                     <option value="decoder@medplus.com">Decoder Access</option>
+                                    <option value="clusterhead@medplus.com">Cluster Head Access</option>
                                 </datalist>
                             </div>
                         </div>

@@ -40,7 +40,9 @@ const PerformanceReport = () => {
                 rxDecoded: Math.floor(Math.random() * 50) + 20, // 20-70
                 productsDecoded: Math.floor(Math.random() * 150) + 50, // 50-200
                 greenCount: Math.floor(Math.random() * 10),
-                accuracy: (95 + Math.random() * 5).toFixed(2)
+                breakHours: parseFloat((Math.random() * 1.5).toFixed(2)),
+                awayHours: parseFloat((Math.random() * 0.5).toFixed(2)),
+                breakCount: Math.floor(Math.random() * 3)
             });
         }
 
@@ -54,7 +56,9 @@ const PerformanceReport = () => {
                 rxDecoded: 0,
                 productsDecoded: 0,
                 greenCount: 0,
-                accuracy: "100.00"
+                breakHours: 0,
+                awayHours: 0,
+                breakCount: 0
             });
         });
 
@@ -89,14 +93,18 @@ const PerformanceReport = () => {
                         const newRx = row.rxDecoded + (Math.random() > 0.7 ? 1 : 0);
                         const newProducts = row.productsDecoded + (Math.random() > 0.6 ? Math.floor(Math.random() * 3) : 0);
                         const newHours = Math.min(row.hours + 0.01, 12); // Increment hours slowly, cap at 12
+                        const newBreak = Math.min(row.breakHours + (Math.random() > 0.9 ? 0.02 : 0), 2);
+                        const newAway = Math.min(row.awayHours + (Math.random() > 0.98 ? 0.01 : 0), 1);
 
+                        const newBreakCount = row.breakCount + (Math.random() > 0.95 ? 1 : 0);
                         return {
                             ...row,
                             rxDecoded: newRx,
                             productsDecoded: newProducts,
                             hours: parseFloat(newHours.toFixed(2)),
-                            // Occasionally update accuracy
-                            accuracy: (Math.random() > 0.9) ? (95 + Math.random() * 5).toFixed(2) : row.accuracy
+                            breakHours: parseFloat(newBreak.toFixed(2)),
+                            awayHours: parseFloat(newAway.toFixed(2)),
+                            breakCount: newBreakCount
                         };
                     }
                     return row;
@@ -197,7 +205,9 @@ const PerformanceReport = () => {
                     rxDecoded: 0,
                     productsDecoded: 0,
                     greenCount: 0,
-                    accuracy: "0.00"
+                    breakHours: 0,
+                    awayHours: 0,
+                    breakCount: 0
                 };
             }
 
@@ -206,7 +216,10 @@ const PerformanceReport = () => {
             const totalRx = employeeRecords.reduce((sum, row) => sum + row.rxDecoded, 0);
             const totalProducts = employeeRecords.reduce((sum, row) => sum + row.productsDecoded, 0);
             const totalGreen = employeeRecords.reduce((sum, row) => sum + row.greenCount, 0);
-            const avgAccuracy = employeeRecords.reduce((sum, row) => sum + parseFloat(row.accuracy), 0) / employeeRecords.length;
+            const totalBreak = employeeRecords.reduce((sum, row) => sum + (row.breakHours || 0), 0);
+            const totalAway = employeeRecords.reduce((sum, row) => sum + (row.awayHours || 0), 0);
+            const totalBreakCount = employeeRecords.reduce((sum, row) => sum + (row.breakCount || 0), 0);
+
 
             return {
                 id: index,
@@ -215,7 +228,9 @@ const PerformanceReport = () => {
                 rxDecoded: totalRx,
                 productsDecoded: totalProducts,
                 greenCount: totalGreen,
-                accuracy: avgAccuracy.toFixed(2)
+                breakHours: parseFloat(totalBreak.toFixed(2)),
+                awayHours: parseFloat(totalAway.toFixed(2)),
+                breakCount: totalBreakCount
             };
         }).filter(Boolean); // Remove nulls from name filter
     }, [allData, selectedDates, filters]);
@@ -228,7 +243,9 @@ const PerformanceReport = () => {
             "Rx Decoded": row.rxDecoded,
             "Products": row.productsDecoded,
             "Green Channel": row.greenCount,
-            "Accuracy %": row.accuracy
+            "break hours": row.breakHours,
+            "away hours": row.awayHours,
+            "No. of Breaks": row.breakCount
         }));
 
         const ws = utils.json_to_sheet(exportData);
@@ -397,6 +414,15 @@ const PerformanceReport = () => {
                                         <span>Hours Worked</span>
                                     </th>
                                     <th className="px-6 py-4">
+                                        <span>No. of Breaks</span>
+                                    </th>
+                                    <th className="px-6 py-4">
+                                        <span>Hours Break Taken</span>
+                                    </th>
+                                    <th className="px-6 py-4">
+                                        <span>Hours Away Without Intimation</span>
+                                    </th>
+                                    <th className="px-6 py-4">
                                         <span>Rx Decoded</span>
                                     </th>
                                     <th className="px-6 py-4">
@@ -404,9 +430,6 @@ const PerformanceReport = () => {
                                     </th>
                                     <th className="px-6 py-4">
                                         <span className="text-emerald-700">Green Channel</span>
-                                    </th>
-                                    <th className="px-6 py-4">
-                                        <span>Accuracy %</span>
                                     </th>
                                 </tr>
                             </thead>
@@ -416,16 +439,14 @@ const PerformanceReport = () => {
                                         <tr key={row.id} className="bg-white hover:bg-slate-50 transition-colors">
                                             <td className="px-6 py-4 font-medium text-slate-900">{row.name}</td>
                                             <td className="px-6 py-4">{row.hours} hrs</td>
+                                            <td className="px-6 py-4">{row.breakCount}</td>
+                                            <td className="px-6 py-4">{row.breakHours} hrs</td>
+                                            <td className="px-6 py-4 text-red-600 font-bold">{row.awayHours} hrs</td>
                                             <td className="px-6 py-4">{row.rxDecoded}</td>
                                             <td className="px-6 py-4">{row.productsDecoded}</td>
                                             <td className="px-6 py-4">
                                                 <span className="bg-emerald-50 text-emerald-700 px-2 py-1 rounded font-bold text-xs">
                                                     {row.greenCount}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <span className={`px-2 py-1 rounded text-xs font-bold ${parseFloat(row.accuracy) >= 98 ? 'bg-indigo-50 text-indigo-700' : 'bg-amber-50 text-amber-700'}`}>
-                                                    {row.accuracy}%
                                                 </span>
                                             </td>
                                         </tr>

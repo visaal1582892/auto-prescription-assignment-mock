@@ -8,13 +8,16 @@ import StoreView from './pages/StoreView';
 import PerformanceReport from './pages/PerformanceReport';
 import PrescriptionReport from './pages/PrescriptionReport';
 
+import StoreOrderSearch from './pages/StoreOrderSearch';
+import VerificationWorkflow from './pages/VerificationWorkflow';
+
 // Mock Protected Route Component
 const ProtectedRoute = ({ children }) => {
   const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
-  return isAuthenticated ? children : <Navigate to="/" replace />;
+  return isAuthenticated ? children : <Navigate to="/" />;
 };
 
-function App() {
+const App = () => {
   return (
     <Router>
       <Routes>
@@ -43,7 +46,14 @@ function App() {
             </ProtectedRoute>
           }
         />
-        <Route path="/store" element={<StoreView />} />
+        <Route
+          path="/store"
+          element={
+            <ProtectedRoute>
+              <StoreView />
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="/performance-report"
           element={
@@ -60,9 +70,25 @@ function App() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/store-search"
+          element={
+            <ProtectedRoute>
+              <StoreOrderSearch />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/verification"
+          element={
+            <ProtectedRoute>
+              <VerificationWorkflow />
+            </ProtectedRoute>
+          }
+        />
       </Routes>
     </Router>
   );
-}
+};
 
 export default App;
