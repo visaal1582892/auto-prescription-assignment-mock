@@ -2,11 +2,13 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import DecoderWorkflow from './pages/DecoderWorkflow';
 import BreakManagement from './pages/BreakManagement';
+import BreakMonitoring from './pages/BreakMonitoring';
 import SupervisorDashboard from './pages/SupervisorDashboard';
 import Login from './pages/Login';
 import StoreView from './pages/StoreView';
 import PerformanceReport from './pages/PerformanceReport';
 import PrescriptionReport from './pages/PrescriptionReport';
+import LocationReport from './pages/LocationReport';
 
 import StoreOrderSearch from './pages/StoreOrderSearch';
 import VerificationWorkflow from './pages/VerificationWorkflow';
@@ -47,6 +49,14 @@ const App = () => {
           }
         />
         <Route
+          path="/break-monitoring"
+          element={
+            <ProtectedRoute>
+              <BreakMonitoring />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/store"
           element={
             <ProtectedRoute>
@@ -67,6 +77,14 @@ const App = () => {
           element={
             <ProtectedRoute>
               <PrescriptionReport />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/location-report"
+          element={
+            <ProtectedRoute>
+              <LocationReport />
             </ProtectedRoute>
           }
         />
