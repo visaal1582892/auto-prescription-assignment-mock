@@ -35,10 +35,7 @@ const PerformanceReport = () => {
                 breakHours: parseFloat((Math.random() * 0.5).toFixed(2)),
                 awayHours: 0,
                 breakCount: Math.floor(Math.random() * 2),
-                greenCount: Math.floor(Math.random() * 5),
-                breakHours: parseFloat((Math.random() * 0.5).toFixed(2)),
-                awayHours: 0,
-                breakCount: Math.floor(Math.random() * 2),
+
                 submitAndCall: Math.floor(Math.random() * 15), // "Submit and Call" clicks
                 greenSentCount: Math.floor(Math.random() * 10) // New 'Green Sent' Metric
             });

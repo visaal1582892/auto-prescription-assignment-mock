@@ -613,27 +613,27 @@ const SupervisorDashboard = () => {
                                     return (
                                         <>
                                             <div className="bg-emerald-50 p-2 rounded border border-emerald-100">
-                                                <div className="text-lg font-bold text-emerald-700">{getPercent(stats.lessThan1Min)}%</div>
+                                                <div className="text-lg font-bold text-emerald-700">{stats.lessThan1Min} <span className="text-sm font-medium opacity-80">({getPercent(stats.lessThan1Min)}%)</span></div>
                                                 <div className="text-[10px] text-emerald-600 font-medium">&lt; 1 min</div>
                                             </div>
                                             <div className="bg-emerald-50 p-2 rounded border border-emerald-100">
-                                                <div className="text-lg font-bold text-emerald-700">{getPercent(stats.oneToThreeMin)}%</div>
+                                                <div className="text-lg font-bold text-emerald-700">{stats.oneToThreeMin} <span className="text-sm font-medium opacity-80">({getPercent(stats.oneToThreeMin)}%)</span></div>
                                                 <div className="text-[10px] text-emerald-600 font-medium">1-3 min</div>
                                             </div>
                                             <div className="bg-blue-50 p-2 rounded border border-blue-100">
-                                                <div className="text-lg font-bold text-blue-700">{getPercent(stats.threeToFiveMin)}%</div>
+                                                <div className="text-lg font-bold text-blue-700">{stats.threeToFiveMin} <span className="text-sm font-medium opacity-80">({getPercent(stats.threeToFiveMin)}%)</span></div>
                                                 <div className="text-[10px] text-blue-600 font-medium">3-5 min</div>
                                             </div>
                                             <div className="bg-amber-50 p-2 rounded border border-amber-100">
-                                                <div className="text-lg font-bold text-amber-700">{getPercent(stats.exceeded5Min)}%</div>
+                                                <div className="text-lg font-bold text-amber-700">{stats.exceeded5Min} <span className="text-sm font-medium opacity-80">({getPercent(stats.exceeded5Min)}%)</span></div>
                                                 <div className="text-[10px] text-amber-600 font-bold">5+ min</div>
                                             </div>
                                             <div className="bg-orange-50 p-2 rounded border border-orange-100">
-                                                <div className="text-lg font-bold text-orange-700">{getPercent(stats.exceeded7Min)}%</div>
+                                                <div className="text-lg font-bold text-orange-700">{stats.exceeded7Min} <span className="text-sm font-medium opacity-80">({getPercent(stats.exceeded7Min)}%)</span></div>
                                                 <div className="text-[10px] text-orange-600 font-bold">7+ min</div>
                                             </div>
                                             <div className="bg-red-50 p-2 rounded border border-red-100 animate-pulse">
-                                                <div className="text-lg font-bold text-red-700">{getPercent(stats.exceeded10Min)}%</div>
+                                                <div className="text-lg font-bold text-red-700">{stats.exceeded10Min} <span className="text-sm font-medium opacity-80">({getPercent(stats.exceeded10Min)}%)</span></div>
                                                 <div className="text-[10px] text-red-600 font-bold">10+ min</div>
                                             </div>
                                         </>
