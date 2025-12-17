@@ -43,6 +43,7 @@ const PrescriptionReport = () => {
                 timestamp: date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
                 patientName: `Patient ${i}`,
                 employeeName: status === 'Not Decoded' ? '-' : employees[Math.floor(Math.random() * employees.length)],
+                empId: status === 'Not Decoded' ? '-' : `EMP-${1000 + Math.floor(Math.random() * 100)}`, // New Field
                 status: status,
                 type: type,
                 timeTaken: status === 'Decoded' ? `${Math.floor(Math.random() * 5) + 1}m ${Math.floor(Math.random() * 60)}s` : '-'
@@ -125,7 +126,8 @@ const PrescriptionReport = () => {
             "Date": row.date,
             "Time": row.timestamp,
             "Patient Name": row.patientName,
-            "Employee": row.employeeName,
+            "Employee Name": row.employeeName,
+            "Employee ID": row.empId, // New Export Column
             "Status": row.status,
             "Type": row.type,
             "Time Taken": row.timeTaken
@@ -247,7 +249,12 @@ const PrescriptionReport = () => {
                                                     <span className="text-xs text-slate-500">{row.timestamp}</span>
                                                 </div>
                                             </td>
-                                            <td className="px-6 py-4">{row.employeeName}</td>
+                                            <td className="px-6 py-4">
+                                                <div className="flex flex-col">
+                                                    <span className="font-medium text-slate-900">{row.employeeName}</span>
+                                                    <span className="text-xs text-slate-500">{row.empId}</span>
+                                                </div>
+                                            </td>
                                             <td className="px-6 py-4">
                                                 <span className={`px-2 py-1 rounded text-xs font-bold flex items-center gap-1 w-fit
                                                     ${row.status === 'Decoded' ? 'bg-emerald-50 text-emerald-700' :
