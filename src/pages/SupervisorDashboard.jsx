@@ -498,12 +498,13 @@ const SupervisorDashboard = () => {
                                     <div>
                                         <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">Total Staff</p>
                                         <p className="text-2xl font-bold text-slate-800">{displayStats.total}</p>
-                                        <div className="flex gap-2 mt-1 text-[10px]">
+                                        <div className="flex items-center gap-2 mt-1 text-[10px]">
                                             <span className="text-emerald-600 font-bold">{displayStats.loggedIn} Online</span>
                                             <span className="text-slate-400">|</span>
                                             <button
                                                 onClick={() => handleOfflineClick(displayStats.total - displayStats.loggedIn)}
-                                                className="text-slate-500 hover:text-indigo-600 hover:underline cursor-pointer"
+                                                className="font-bold text-blue-500 underline decoration-blue-500 hover:text-red-600 hover:decoration-red-600 cursor-pointer transition-colors"
+                                                title="View Offline Staff"
                                             >
                                                 {displayStats.total - displayStats.loggedIn} Offline
                                             </button>
@@ -815,8 +816,8 @@ const SupervisorDashboard = () => {
                                                             key={pageNum}
                                                             onClick={() => setCurrentPage(pageNum)}
                                                             className={`min-w-[24px] h-6 rounded flex items-center justify-center text-[10px] font-bold transition-all ${currentPage === pageNum
-                                                                    ? 'bg-indigo-600 text-white shadow-sm'
-                                                                    : 'bg-white text-slate-500 hover:bg-slate-50 border border-slate-200 hover:border-indigo-200'
+                                                                ? 'bg-indigo-600 text-white shadow-sm'
+                                                                : 'bg-white text-slate-500 hover:bg-slate-50 border border-slate-200 hover:border-indigo-200'
                                                                 }`}
                                                         >
                                                             {pageNum}
