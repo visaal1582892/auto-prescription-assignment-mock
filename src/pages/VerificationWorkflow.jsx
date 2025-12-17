@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { ArrowLeft, Plus, Trash2, Check, Shield, Search, User, Clock, FileText, ArrowRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -8,13 +8,13 @@ const VerificationWorkflow = () => {
     const [selectedPrescription, setSelectedPrescription] = useState(null);
 
     // Mock Data for Team Prescriptions
-    const [inbox, setInbox] = useState([
-        { id: 'RX-99281', empName: 'Alice Cooper', time: '10:30 AM', items: 3, status: 'Pending' },
-        { id: 'RX-99282', empName: 'Bob Martin', time: '10:32 AM', items: 5, status: 'Pending' },
-        { id: 'RX-99283', empName: 'Charlie Day', time: '10:35 AM', items: 2, status: 'Pending' },
-        { id: 'RX-99284', empName: 'Diana Prince', time: '10:40 AM', items: 4, status: 'Pending' },
-        { id: 'RX-99285', empName: 'Evan Wright', time: '10:45 AM', items: 1, status: 'Pending' }
-    ]);
+    const [inbox, setInbox] = useState(Array.from({ length: 28 }, (_, i) => ({
+        id: `RX-99${281 + i}`,
+        empName: ['Alice Cooper', 'Bob Martin', 'Charlie Day', 'Diana Prince', 'Evan Wright', 'Fiona Gallagher', 'George Costanza'][i % 7],
+        time: `${10 + Math.floor(i / 10)}:${(30 + i) % 60} AM`,
+        items: (i % 5) + 1,
+        status: 'Pending'
+    })));
 
     // Detail View State
     const [items, setItems] = useState([
@@ -51,6 +51,23 @@ const VerificationWorkflow = () => {
         setSelectedPrescription(null);
     };
 
+    // --- Pagination Logic ---
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 9; // 3x3 grid
+
+    const totalPages = Math.ceil(inbox.length / itemsPerPage);
+    const paginatedInbox = useMemo(() => {
+        const start = (currentPage - 1) * itemsPerPage;
+        return inbox.slice(start, start + itemsPerPage);
+    }, [inbox, currentPage]);
+
+    // Reset pagination when inbox changes (e.g. item removed)
+    useEffect(() => {
+        if (currentPage > totalPages && totalPages > 0) {
+            setCurrentPage(totalPages);
+        }
+    }, [inbox.length, totalPages]);
+
     // --- RENDER: List View ---
     if (viewMode === 'list') {
         return (
@@ -78,10 +95,9 @@ const VerificationWorkflow = () => {
                     </div>
                 </div>
 
-                {/* List Content */}
-                <div className="max-w-5xl mx-auto p-6">
+                <div className="max-w-5xl mx-auto p-6 space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {inbox.map((rx) => (
+                        {paginatedInbox.map((rx) => (
                             <div
                                 key={rx.id}
                                 onClick={() => handleSelectPrescription(rx)}
@@ -115,6 +131,46 @@ const VerificationWorkflow = () => {
                             </div>
                         ))}
                     </div>
+
+                    {/* Pagination Controls */}
+                    {inbox.length > 0 && (
+                        <div className="bg-white rounded-xl border border-slate-200 px-6 py-4 text-xs text-slate-500 flex justify-between items-center shadow-sm">
+                            <span>Showing {paginatedInbox.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0} - {Math.min(currentPage * itemsPerPage, inbox.length)} of {inbox.length} records</span>
+                            <div className="flex gap-2 items-center">
+                                <span className="mr-2 text-slate-400">Page {currentPage} of {totalPages}</span>
+                                <button
+                                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                                    disabled={currentPage === 1}
+                                    className="px-2 py-1 text-[10px] font-bold text-slate-500 hover:text-indigo-600 disabled:opacity-30 disabled:hover:text-slate-500 border border-slate-300 rounded bg-white hover:bg-slate-50"
+                                >
+                                    Previous
+                                </button>
+
+                                <div className="flex items-center gap-1 overflow-x-auto max-w-[200px] scrollbar-hide py-1">
+                                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(pageNum => (
+                                        <button
+                                            key={pageNum}
+                                            onClick={() => setCurrentPage(pageNum)}
+                                            className={`min-w-[24px] h-6 rounded flex items-center justify-center text-[10px] font-bold transition-all ${currentPage === pageNum
+                                                    ? 'bg-indigo-600 text-white shadow-sm'
+                                                    : 'bg-white text-slate-500 hover:bg-slate-50 border border-slate-200 hover:border-indigo-200'
+                                                }`}
+                                        >
+                                            {pageNum}
+                                        </button>
+                                    ))}
+                                </div>
+
+                                <button
+                                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                                    disabled={currentPage === totalPages}
+                                    className="px-2 py-1 text-[10px] font-bold text-slate-500 hover:text-indigo-600 disabled:opacity-30 disabled:hover:text-slate-500 border border-slate-300 rounded bg-white hover:bg-slate-50"
+                                >
+                                    Next
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
         );

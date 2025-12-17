@@ -230,7 +230,6 @@ const PrescriptionReport = () => {
                                 <tr>
                                     <th className="px-6 py-4">Prescription ID</th>
                                     <th className="px-6 py-4">Date & Time</th>
-                                    <th className="px-6 py-4">Patient Name</th>
                                     <th className="px-6 py-4">Employee</th>
                                     <th className="px-6 py-4">Status</th>
                                     <th className="px-6 py-4">Type</th>
@@ -248,7 +247,6 @@ const PrescriptionReport = () => {
                                                     <span className="text-xs text-slate-500">{row.timestamp}</span>
                                                 </div>
                                             </td>
-                                            <td className="px-6 py-4">{row.patientName}</td>
                                             <td className="px-6 py-4">{row.employeeName}</td>
                                             <td className="px-6 py-4">
                                                 <span className={`px-2 py-1 rounded text-xs font-bold flex items-center gap-1 w-fit
@@ -284,18 +282,34 @@ const PrescriptionReport = () => {
                     <div className="bg-slate-50 px-6 py-4 border-t border-slate-200 text-xs text-slate-500 flex justify-between items-center">
                         <span>Showing {Math.min((currentPage - 1) * itemsPerPage + 1, filteredData.length)} - {Math.min(currentPage * itemsPerPage, filteredData.length)} of {filteredData.length} records</span>
                         <div className="flex gap-2 items-center">
-                            <span className="mr-2">Page {currentPage} of {totalPages}</span>
+                            <span className="mr-2 text-slate-400">Page {currentPage} of {totalPages}</span>
                             <button
                                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                                 disabled={currentPage === 1}
-                                className="px-3 py-1 border border-slate-300 rounded bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="px-2 py-1 text-[10px] font-bold text-slate-500 hover:text-indigo-600 disabled:opacity-30 disabled:hover:text-slate-500 border border-slate-300 rounded bg-white hover:bg-slate-50"
                             >
                                 Previous
                             </button>
+
+                            <div className="flex items-center gap-1 overflow-x-auto max-w-[200px] scrollbar-hide py-1">
+                                {Array.from({ length: totalPages }, (_, i) => i + 1).map(pageNum => (
+                                    <button
+                                        key={pageNum}
+                                        onClick={() => setCurrentPage(pageNum)}
+                                        className={`min-w-[24px] h-6 rounded flex items-center justify-center text-[10px] font-bold transition-all ${currentPage === pageNum
+                                            ? 'bg-indigo-600 text-white shadow-sm'
+                                            : 'bg-white text-slate-500 hover:bg-slate-50 border border-slate-200 hover:border-indigo-200'
+                                            }`}
+                                    >
+                                        {pageNum}
+                                    </button>
+                                ))}
+                            </div>
+
                             <button
                                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                                 disabled={currentPage === totalPages}
-                                className="px-3 py-1 border border-slate-300 rounded bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="px-2 py-1 text-[10px] font-bold text-slate-500 hover:text-indigo-600 disabled:opacity-30 disabled:hover:text-slate-500 border border-slate-300 rounded bg-white hover:bg-slate-50"
                             >
                                 Next
                             </button>

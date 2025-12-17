@@ -137,11 +137,17 @@ const PerformanceReport = () => {
             const totalAway = employeeRecords.reduce((sum, row) => sum + (row.awayHours || 0), 0);
             const totalBreakCount = employeeRecords.reduce((sum, row) => sum + (row.breakCount || 0), 0);
 
+            // Calculate Average Prescriptions Decoded per Hour
+            // Avoid division by zero
+            const avgRxDecoded = totalHours > 0 ? (totalRx / totalHours) : 0;
+
             return {
                 id: index,
+                empId: `EMP-${1000 + index}`, // New Field
                 name,
                 hours: totalHours, // Keep precision
                 rxDecoded: totalRx,
+                avgRxDecoded, // New Field
                 productsDecoded: totalProducts,
                 greenCount: totalGreen,
                 submitAndCall: totalSubmitCall,
@@ -153,12 +159,29 @@ const PerformanceReport = () => {
         }).filter(Boolean); // Remove nulls from name filter
     }, [allData, filters]); // Remove selectedDates dependency
 
+    // --- Pagination Logic ---
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 10;
+
+    const totalPages = Math.ceil(filteredData.length / itemsPerPage);
+    const paginatedData = useMemo(() => {
+        const start = (currentPage - 1) * itemsPerPage;
+        return filteredData.slice(start, start + itemsPerPage);
+    }, [filteredData, currentPage]);
+
+    // Reset page on filter change
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [filters]);
+
     // --- Export Logic ---
     const handleExport = () => {
         const exportData = filteredData.map(row => ({
+            "Employee ID": row.empId, // New Export Column
             "Employee Name": row.name,
             "Hours Worked": row.hours,
             "Rx Decoded": row.rxDecoded,
+            "Avg Rx Decoded": row.avgRxDecoded.toFixed(2), // New Export Column
             "Products": row.productsDecoded,
             "Green Channel": row.greenCount,
             "Green Sent": row.greenSentCount || 0,
@@ -256,6 +279,9 @@ const PerformanceReport = () => {
                                         <span>Rx Decoded</span>
                                     </th>
                                     <th className="px-6 py-4">
+                                        <span>Avg Rx/Hr</span>
+                                    </th>
+                                    <th className="px-6 py-4">
                                         <span>Products</span>
                                     </th>
                                     <th className="px-6 py-4">
@@ -270,10 +296,15 @@ const PerformanceReport = () => {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
-                                {filteredData.length > 0 ? (
-                                    filteredData.map((row) => (
+                                {paginatedData.length > 0 ? (
+                                    paginatedData.map((row) => (
                                         <tr key={row.id} className="bg-white hover:bg-slate-50 transition-colors">
-                                            <td className="px-6 py-4 font-medium text-slate-900">{row.name}</td>
+                                            <td className="px-6 py-4">
+                                                <div className="flex flex-col">
+                                                    <span className="font-medium text-slate-900">{row.name}</span>
+                                                    <span className="text-xs text-slate-500">{row.empId}</span>
+                                                </div>
+                                            </td>
                                             <td className="px-6 py-4 font-mono font-bold text-indigo-600">
                                                 {/* Format decimal hours to HH:MM:SS */}
                                                 {(() => {
@@ -287,6 +318,9 @@ const PerformanceReport = () => {
                                             <td className="px-6 py-4">{row.breakHours.toFixed(2)} hrs</td>
                                             <td className="px-6 py-4 text-red-600 font-bold">{row.awayHours.toFixed(2)} hrs</td>
                                             <td className="px-6 py-4">{row.rxDecoded}</td>
+                                            <td className="px-6 py-4 font-semibold text-slate-700">
+                                                {row.avgRxDecoded.toFixed(2)}
+                                            </td>
                                             <td className="px-6 py-4">{row.productsDecoded}</td>
                                             <td className="px-6 py-4">
                                                 <span className="bg-emerald-50 text-emerald-700 px-2 py-1 rounded font-bold text-xs">
@@ -307,7 +341,7 @@ const PerformanceReport = () => {
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan="10" className="px-6 py-12 text-center text-slate-400">
+                                        <td colSpan="11" className="px-6 py-12 text-center text-slate-400">
                                             <Filter size={48} className="mx-auto mb-4 opacity-20" />
                                             <p>No records found matching your filters.</p>
                                         </td>
@@ -317,10 +351,40 @@ const PerformanceReport = () => {
                         </table>
                     </div>
                     <div className="bg-slate-50 px-6 py-4 border-t border-slate-200 text-xs text-slate-500 flex justify-between items-center">
-                        <span>Showing {filteredData.length} records</span>
-                        <div className="flex gap-2">
-                            <button className="px-3 py-1 border border-slate-300 rounded bg-white hover:bg-slate-50 disabled:opacity-50">Previous</button>
-                            <button className="px-3 py-1 border border-slate-300 rounded bg-white hover:bg-slate-50 disabled:opacity-50">Next</button>
+                        <span>Showing {paginatedData.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0} - {Math.min(currentPage * itemsPerPage, filteredData.length)} of {filteredData.length} records</span>
+
+                        <div className="flex gap-2 items-center">
+                            <span className="mr-2 text-slate-400">Page {currentPage} of {totalPages}</span>
+                            <button
+                                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                                disabled={currentPage === 1}
+                                className="px-2 py-1 text-[10px] font-bold text-slate-500 hover:text-indigo-600 disabled:opacity-30 disabled:hover:text-slate-500 border border-slate-300 rounded bg-white hover:bg-slate-50"
+                            >
+                                Previous
+                            </button>
+
+                            <div className="flex items-center gap-1 overflow-x-auto max-w-[200px] scrollbar-hide py-1">
+                                {Array.from({ length: totalPages }, (_, i) => i + 1).map(pageNum => (
+                                    <button
+                                        key={pageNum}
+                                        onClick={() => setCurrentPage(pageNum)}
+                                        className={`min-w-[24px] h-6 rounded flex items-center justify-center text-[10px] font-bold transition-all ${currentPage === pageNum
+                                            ? 'bg-indigo-600 text-white shadow-sm'
+                                            : 'bg-white text-slate-500 hover:bg-slate-50 border border-slate-200 hover:border-indigo-200'
+                                            }`}
+                                    >
+                                        {pageNum}
+                                    </button>
+                                ))}
+                            </div>
+
+                            <button
+                                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                                disabled={currentPage === totalPages}
+                                className="px-2 py-1 text-[10px] font-bold text-slate-500 hover:text-indigo-600 disabled:opacity-30 disabled:hover:text-slate-500 border border-slate-300 rounded bg-white hover:bg-slate-50"
+                            >
+                                Next
+                            </button>
                         </div>
                     </div>
                 </div>

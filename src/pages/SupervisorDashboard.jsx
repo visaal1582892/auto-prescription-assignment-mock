@@ -197,17 +197,15 @@ const SupervisorDashboard = () => {
     const [showReassign, setShowReassign] = useState(false);
     const [reassignUser, setReassignUser] = useState('');
     const [performerMode, setPerformerMode] = useState('NORMAL'); // 'NORMAL' | 'GREEN'
+    const [sortOrder, setSortOrder] = useState('desc'); // 'desc' (Top) | 'asc' (Least)
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 5;
 
     // --- Top Performers Data Generation (Last 7 Days) ---
     // We'll simulate this data once on mount, as 7-day trailing data doesn't change second-by-second like live stats
     const [leaderboardData] = useState(() => {
-        const names = [
-            "Alice Cooper", "Bob Martin", "Charlie Day", "Diana Prince", "Evan Wright",
-            "Frank Castle", "Grace Ho", "Henry Wu", "Ivy Chen", "Jack Ryan",
-            "Kevin Hart", "Leo Di", "Mia Wong", "Nina Simone", "Oscar Wilde"
-        ];
-
-        const data = names.map(name => {
+        // Use the global NAMES array to generate data for ALL users
+        const data = NAMES.map(name => {
             // Simulate 7-day totals
             const totalRx = Math.floor(Math.random() * 300) + 1500; // 1500-1800 range
             const greenRx = Math.floor(Math.random() * 50) + 100;   // 100-150 range
@@ -221,9 +219,13 @@ const SupervisorDashboard = () => {
             };
         });
 
+        // Current implementation expects pre-sorted arrays for different modes, 
+        // but we will now sort dynamically in the render. 
+        // We just return the full dataset in both keys for compatibility with existing structure if needed,
+        // or just clean it up. Let's keep the structure but populated with ALL data.
         return {
-            normal: [...data].sort((a, b) => b.total7Days - a.total7Days).slice(0, 5),
-            green: [...data].sort((a, b) => b.green7Days - a.green7Days).slice(0, 5)
+            normal: data, // Unsorted initially, wil be sorted on render
+            green: data
         };
     });
 
@@ -695,18 +697,24 @@ const SupervisorDashboard = () => {
                         <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
                             <div className="flex items-center justify-between mb-4">
                                 <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
-                                    <Activity size={14} /> Top 5 Performers
+                                    <Activity size={14} /> Decoders Performance
                                 </h2>
                                 {/* Toggle for Normal/Green */}
                                 <div className="flex bg-slate-100 p-0.5 rounded-lg">
                                     <button
-                                        onClick={() => setPerformerMode('NORMAL')}
+                                        onClick={() => {
+                                            setPerformerMode('NORMAL');
+                                            setCurrentPage(1); // Reset page on mode switch
+                                        }}
                                         className={`px-3 py-1 text-[10px] font-bold rounded-md transition-all ${performerMode === 'NORMAL' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                                     >
                                         Normal
                                     </button>
                                     <button
-                                        onClick={() => setPerformerMode('GREEN')}
+                                        onClick={() => {
+                                            setPerformerMode('GREEN');
+                                            setCurrentPage(1); // Reset page on mode switch
+                                        }}
                                         className={`px-3 py-1 text-[10px] font-bold rounded-md transition-all ${performerMode === 'GREEN' ? 'bg-emerald-50 text-emerald-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                                     >
                                         Green
@@ -714,49 +722,120 @@ const SupervisorDashboard = () => {
                                 </div>
                             </div>
 
-                            <p className="text-[10px] text-slate-400 mb-3 text-right italic">
-                                *Data based on last 7 days (until yesterday)
-                            </p>
-
-                            <div className="space-y-3">
-                                {(performerMode === 'NORMAL' ? leaderboardData.normal : leaderboardData.green).map((user, idx) => (
-                                    <div key={idx} className="flex items-center justify-between p-2 hover:bg-slate-50 rounded transition-colors group">
-                                        <div className="flex items-center gap-3">
-                                            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white ${idx === 0 ? 'bg-amber-400' : 'bg-slate-300'}`}>
-                                                {idx + 1}
-                                            </div>
-                                            <div>
-                                                <div className="text-sm font-medium text-slate-800">{user.name}</div>
-                                                {performerMode === 'NORMAL' && (
-                                                    <div className="text-[10px] text-slate-500">
-                                                        Avg: <span className="font-bold text-indigo-600">{user.avgProdPerHour}</span> prod/hr
-                                                    </div>
-                                                )}
-                                                {performerMode === 'GREEN' && (
-                                                    <div className="text-[10px] text-slate-500">
-                                                        Total: <span className="font-bold text-slate-700">{user.total7Days}</span> <span className="mx-1">|</span> Avg: <span className="font-bold text-indigo-600">{user.avgProdPerHour}</span>/hr
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-                                        <div className="text-right">
-                                            {performerMode === 'NORMAL' ? (
-                                                <>
-                                                    <div className="text-sm font-bold text-slate-700">{user.total7Days}</div>
-                                                    <div className="text-[10px] text-slate-400">Total Rx (7d)</div>
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <div className="text-sm font-bold text-emerald-600">{user.green7Days}</div>
-                                                    <div className="text-[10px] text-emerald-400/80">Total Green</div>
-                                                </>
-                                            )}
-                                        </div>
-                                    </div>
-                                ))}
+                            {/* Sorting Controls */}
+                            <div className="flex justify-between items-center mb-3">
+                                <p className="text-[10px] text-slate-400 italic">
+                                    *Data based on last 7 days (until yesterday)
+                                </p>
+                                <button
+                                    onClick={() => setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc')}
+                                    className="flex items-center gap-1 text-[10px] font-bold text-slate-500 hover:text-indigo-600 bg-slate-50 px-2 py-1 rounded border border-slate-200"
+                                >
+                                    Sort: {sortOrder === 'desc' ? 'Top Performers' : 'Least Performers'}
+                                    <ChevronDown size={12} className={`transition-transform ${sortOrder === 'asc' ? 'rotate-180' : ''}`} />
+                                </button>
                             </div>
 
+                            <div className="space-y-3 min-h-[300px]">
+                                {(() => {
+                                    // 1. Get correct dataset
+                                    const data = performerMode === 'NORMAL' ? leaderboardData.normal : leaderboardData.green;
 
+                                    // 2. Sort
+                                    const sortedData = [...data].sort((a, b) => {
+                                        const valA = performerMode === 'NORMAL' ? a.total7Days : a.green7Days;
+                                        const valB = performerMode === 'NORMAL' ? b.total7Days : b.green7Days;
+                                        return sortOrder === 'desc' ? valB - valA : valA - valB;
+                                    });
+
+                                    // 3. Paginate
+                                    const indexOfLastItem = currentPage * itemsPerPage;
+                                    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+                                    const currentItems = sortedData.slice(indexOfFirstItem, indexOfLastItem);
+                                    const totalPages = Math.ceil(sortedData.length / itemsPerPage);
+
+                                    return (
+                                        <>
+                                            {currentItems.map((user, idx) => {
+                                                // Calculate overall rank based on sort
+                                                const rank = sortOrder === 'desc'
+                                                    ? indexOfFirstItem + idx + 1
+                                                    : sortedData.length - (indexOfFirstItem + idx);
+
+                                                return (
+                                                    <div key={user.name} className="flex items-center justify-between p-2 hover:bg-slate-50 rounded transition-colors group">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white ${rank <= 3 ? 'bg-amber-400' : 'bg-slate-300'}`}>
+                                                                {rank}
+                                                            </div>
+                                                            <div>
+                                                                <div className="text-sm font-medium text-slate-800">{user.name}</div>
+                                                                {performerMode === 'NORMAL' && (
+                                                                    <div className="text-[10px] text-slate-500">
+                                                                        Avg: <span className="font-bold text-indigo-600">{user.avgProdPerHour}</span> prod/hr
+                                                                    </div>
+                                                                )}
+                                                                {performerMode === 'GREEN' && (
+                                                                    <div className="text-[10px] text-slate-500">
+                                                                        Total: <span className="font-bold text-slate-700">{user.total7Days}</span> <span className="mx-1">|</span> Avg: <span className="font-bold text-indigo-600">{user.avgProdPerHour}</span>/hr
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                        <div className="text-right">
+                                                            {performerMode === 'NORMAL' ? (
+                                                                <>
+                                                                    <div className="text-sm font-bold text-slate-700">{user.total7Days}</div>
+                                                                    <div className="text-[10px] text-slate-400">Total Rx (7d)</div>
+                                                                </>
+                                                            ) : (
+                                                                <>
+                                                                    <div className="text-sm font-bold text-emerald-600">{user.green7Days}</div>
+                                                                    <div className="text-[10px] text-emerald-400/80">Total Green</div>
+                                                                </>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+
+                                            {/* Pagination Controls */}
+                                            <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-100">
+                                                <button
+                                                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                                                    disabled={currentPage === 1}
+                                                    className="px-2 py-1 text-[10px] font-bold text-slate-500 hover:text-indigo-600 disabled:opacity-30 disabled:hover:text-slate-500"
+                                                >
+                                                    Previous
+                                                </button>
+
+                                                <div className="flex items-center gap-1 overflow-x-auto max-w-[200px] scrollbar-hide py-1">
+                                                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(pageNum => (
+                                                        <button
+                                                            key={pageNum}
+                                                            onClick={() => setCurrentPage(pageNum)}
+                                                            className={`min-w-[24px] h-6 rounded flex items-center justify-center text-[10px] font-bold transition-all ${currentPage === pageNum
+                                                                    ? 'bg-indigo-600 text-white shadow-sm'
+                                                                    : 'bg-white text-slate-500 hover:bg-slate-50 border border-slate-200 hover:border-indigo-200'
+                                                                }`}
+                                                        >
+                                                            {pageNum}
+                                                        </button>
+                                                    ))}
+                                                </div>
+
+                                                <button
+                                                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                                                    disabled={currentPage === totalPages}
+                                                    className="px-2 py-1 text-[10px] font-bold text-slate-500 hover:text-indigo-600 disabled:opacity-30 disabled:hover:text-slate-500"
+                                                >
+                                                    Next
+                                                </button>
+                                            </div>
+                                        </>
+                                    );
+                                })()}
+                            </div>
                         </div>
                     </div>
                 </div>
