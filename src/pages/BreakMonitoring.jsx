@@ -18,8 +18,11 @@ import { useNavigate } from 'react-router-dom';
 const BreakMonitoring = () => {
     const navigate = useNavigate();
     const [currentTime, setCurrentTime] = useState(Date.now());
-    const [filterType, setFilterType] = useState('ALL'); // 'ALL', 'IN_HOUSE', 'WFH'
-    const [filterBreak, setFilterBreak] = useState('ALL'); // 'ALL', 'Call Break', 'Verify Break', 'Normal Break', 'No Intimation'
+    const [filters, setFilters] = useState({
+        type: 'ALL',
+        breakType: 'ALL',
+        employee: ''
+    });
 
     // Mock Data
     const [employees, setEmployees] = useState([
@@ -48,10 +51,22 @@ const BreakMonitoring = () => {
 
     // Filter Logic
     const filteredEmployees = useMemo(() => employees.filter(emp => {
-        if (filterType !== 'ALL' && emp.type !== filterType) return false;
-        if (filterBreak !== 'ALL' && emp.breakType !== filterBreak) return false;
+        // Type Filter
+        if (filters.type !== 'ALL' && emp.type !== filters.type) return false;
+
+        // Break Type Filter
+        if (filters.breakType !== 'ALL' && emp.breakType !== filters.breakType) return false;
+
+        // Employee Search
+        if (filters.employee) {
+            const search = filters.employee.toLowerCase();
+            const empName = emp.name.toLowerCase();
+            const empId = `emp-${emp.id + 1000}`.toLowerCase(); // Constructed ID for search
+            if (!empName.includes(search) && !empId.includes(search)) return false;
+        }
+
         return true;
-    }), [employees, filterType, filterBreak]);
+    }), [employees, filters]);
 
     // Pagination Logic
     const [currentPage, setCurrentPage] = useState(1);
@@ -64,9 +79,10 @@ const BreakMonitoring = () => {
     }, [filteredEmployees, currentPage]);
 
     // Reset pagination on filter change
+    // Reset pagination on filter change
     useEffect(() => {
         setCurrentPage(1);
-    }, [filterType, filterBreak]);
+    }, [filters]);
 
     const getBreakColor = (type) => {
         switch (type) {
@@ -131,43 +147,21 @@ const BreakMonitoring = () => {
 
             <div className="max-w-7xl mx-auto p-6 space-y-6">
 
-                {/* Filters */}
-                <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-wrap gap-4 items-center justify-between">
-                    <div className="flex items-center gap-4">
-                        {/* Break Type Filter */}
-                        <div className="flex items-center gap-2 bg-slate-100 px-3 py-2 rounded-lg border border-slate-200">
-                            <Filter size={14} className="text-slate-400" />
-                            <select
-                                value={filterBreak}
-                                onChange={(e) => setFilterBreak(e.target.value)}
-                                className="bg-transparent text-sm font-medium text-slate-700 focus:outline-none cursor-pointer"
-                            >
-                                <option value="ALL">All Break Types</option>
-                                <option value="Normal Break">Normal Break</option>
-                                <option value="Call Break">Call Break</option>
-                                <option value="Verify Break">Verify Break</option>
-                                <option value="No Intimation">No Intimation</option>
-                            </select>
-                        </div>
-
-                        {/* Location Filter */}
-                        <div className="flex items-center gap-2 bg-slate-100 px-3 py-2 rounded-lg border border-slate-200">
-                            <Building size={14} className="text-slate-400" />
-                            <select
-                                value={filterType}
-                                onChange={(e) => setFilterType(e.target.value)}
-                                className="bg-transparent text-sm font-medium text-slate-700 focus:outline-none cursor-pointer"
-                            >
-                                <option value="ALL">All Locations</option>
-                                <option value="IN_HOUSE">In-House</option>
-                                <option value="WFH">Work From Home</option>
-                            </select>
-                        </div>
-                    </div>
+                {/* Filters Row */}
+                <div className="flex justify-end items-center gap-4">
+                    {(filters.type !== 'ALL' || filters.breakType !== 'ALL' || filters.employee) && (
+                        <button
+                            onClick={() => setFilters({ type: 'ALL', breakType: 'ALL', employee: '' })}
+                            className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg text-sm font-bold hover:bg-slate-50 transition-all shadow-sm"
+                        >
+                            <Filter size={16} className="text-slate-400" />
+                            Clear Filters
+                        </button>
+                    )}
 
                     <button
                         onClick={handleExport}
-                        className="flex items-center gap-2 text-indigo-600 hover:text-indigo-800 font-bold border border-indigo-200 px-4 py-2 rounded-lg hover:bg-indigo-50 transition-colors text-sm"
+                        className="flex items-center gap-2 text-indigo-600 hover:text-indigo-800 font-bold border border-indigo-200 px-4 py-2 rounded-lg hover:bg-indigo-50 transition-colors text-sm bg-white shadow-sm"
                     >
                         <Download size={16} />
                         Export Log
@@ -179,10 +173,52 @@ const BreakMonitoring = () => {
                     <table className="w-full text-left">
                         <thead className="bg-slate-50 border-b border-slate-200">
                             <tr>
-                                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Employee</th>
-                                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Type</th>
+                                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider min-w-[200px]">
+                                    <div className="flex flex-col gap-2">
+                                        <span>Employee</span>
+                                        <div className="relative">
+                                            <Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400" />
+                                            <input
+                                                type="text"
+                                                placeholder="Search Name/ID..."
+                                                className="w-full pl-7 pr-2 py-1 text-xs border border-slate-300 rounded focus:outline-none focus:border-indigo-500 font-normal normal-case"
+                                                value={filters.employee}
+                                                onChange={(e) => setFilters(prev => ({ ...prev, employee: e.target.value }))}
+                                            />
+                                        </div>
+                                    </div>
+                                </th>
+                                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider min-w-[140px]">
+                                    <div className="flex flex-col gap-2">
+                                        <span>Type</span>
+                                        <select
+                                            className="w-full px-2 py-1 text-xs border border-slate-300 rounded focus:outline-none focus:border-indigo-500 font-normal normal-case"
+                                            value={filters.type}
+                                            onChange={(e) => setFilters(prev => ({ ...prev, type: e.target.value }))}
+                                        >
+                                            <option value="ALL">All</option>
+                                            <option value="IN_HOUSE">In-House</option>
+                                            <option value="WFH">WFH</option>
+                                        </select>
+                                    </div>
+                                </th>
                                 <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Contact</th>
-                                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Break Details</th>
+                                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider min-w-[160px]">
+                                    <div className="flex flex-col gap-2">
+                                        <span>Break Details</span>
+                                        <select
+                                            className="w-full px-2 py-1 text-xs border border-slate-300 rounded focus:outline-none focus:border-indigo-500 font-normal normal-case"
+                                            value={filters.breakType}
+                                            onChange={(e) => setFilters(prev => ({ ...prev, breakType: e.target.value }))}
+                                        >
+                                            <option value="ALL">All</option>
+                                            <option value="Normal Break">Normal Break</option>
+                                            <option value="Call Break">Call Break</option>
+                                            <option value="Verify Break">Verify Break</option>
+                                            <option value="No Intimation">No Intimation</option>
+                                        </select>
+                                    </div>
+                                </th>
                                 <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Live Duration</th>
                                 <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Actions</th>
                             </tr>

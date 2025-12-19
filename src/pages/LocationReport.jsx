@@ -76,8 +76,7 @@ const LocationReport = () => {
     // --- Filters State ---
     const [filters, setFilters] = useState({
         state: "All",
-        city: "All",
-        search: ""
+        city: "All"
     });
 
     // Helper: Get unique states from actual data
@@ -99,10 +98,8 @@ const LocationReport = () => {
 
             const matchesState = filters.state === "All" || row.state === filters.state;
             const matchesCity = filters.city === "All" || row.city === filters.city;
-            const matchesSearch = row.storeId.toLowerCase().includes(filters.search.toLowerCase()) ||
-                row.city.toLowerCase().includes(filters.search.toLowerCase());
 
-            return matchesState && matchesCity && matchesSearch;
+            return matchesState && matchesCity;
         });
     }, [allData, filters, dateRange]);
 
@@ -256,45 +253,15 @@ const LocationReport = () => {
                             )}
                         </div>
 
-                        {/* State Filter */}
-                        <div className="flex items-center gap-2 bg-slate-100 px-3 py-2 rounded-lg border border-slate-200">
-                            <Filter size={14} className="text-slate-400" />
-                            <select
-                                className="bg-transparent text-sm font-medium text-slate-700 focus:outline-none cursor-pointer"
-                                value={filters.state}
-                                onChange={(e) => setFilters(prev => ({ ...prev, state: e.target.value, city: "All" }))} // Reset city on state change
+                        {(filters.state !== 'All' || filters.city !== 'All') && (
+                            <button
+                                onClick={() => setFilters({ state: 'All', city: 'All' })}
+                                className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg text-sm font-bold hover:bg-slate-50 transition-all shadow-sm"
                             >
-                                {uniqueStates.map(state => (
-                                    <option key={state} value={state}>{state === "All" ? "All States" : state}</option>
-                                ))}
-                            </select>
-                        </div>
-
-                        {/* City Filter */}
-                        <div className="flex items-center gap-2 bg-slate-100 px-3 py-2 rounded-lg border border-slate-200">
-                            <MapPin size={14} className="text-slate-400" />
-                            <select
-                                className="bg-transparent text-sm font-medium text-slate-700 focus:outline-none cursor-pointer"
-                                value={filters.city}
-                                onChange={(e) => setFilters(prev => ({ ...prev, city: e.target.value }))}
-                            >
-                                {uniqueCities.map(city => (
-                                    <option key={city} value={city}>{city === "All" ? "All Cities" : city}</option>
-                                ))}
-                            </select>
-                        </div>
-
-                        {/* Search */}
-                        <div className="relative">
-                            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                            <input
-                                type="text"
-                                placeholder="Search Store ID..."
-                                className="pl-9 pr-4 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:border-indigo-500 w-48"
-                                value={filters.search}
-                                onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
-                            />
-                        </div>
+                                <Filter size={16} className="text-slate-400" />
+                                Clear Filters
+                            </button>
+                        )}
 
                         <button
                             onClick={handleExport}
@@ -335,8 +302,34 @@ const LocationReport = () => {
                         <table className="w-full text-sm text-left text-slate-600">
                             <thead className="text-xs text-slate-700 uppercase bg-slate-50 border-b border-slate-200">
                                 <tr>
-                                    <th className="px-6 py-4">State</th>
-                                    <th className="px-6 py-4">City</th>
+                                    <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider min-w-[200px]">
+                                        <div className="flex flex-col gap-2">
+                                            <span>State</span>
+                                            <select
+                                                className="w-full px-2 py-1 text-xs border border-slate-300 rounded focus:outline-none focus:border-indigo-500 font-normal normal-case"
+                                                value={filters.state}
+                                                onChange={(e) => setFilters(prev => ({ ...prev, state: e.target.value, city: "All" }))}
+                                            >
+                                                {uniqueStates.map(state => (
+                                                    <option key={state} value={state}>{state === "All" ? "All" : state}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    </th>
+                                    <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider min-w-[200px]">
+                                        <div className="flex flex-col gap-2">
+                                            <span>City</span>
+                                            <select
+                                                className="w-full px-2 py-1 text-xs border border-slate-300 rounded focus:outline-none focus:border-indigo-500 font-normal normal-case"
+                                                value={filters.city}
+                                                onChange={(e) => setFilters(prev => ({ ...prev, city: e.target.value }))}
+                                            >
+                                                {uniqueCities.map(city => (
+                                                    <option key={city} value={city}>{city === "All" ? "All" : city}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    </th>
                                     <th className="px-6 py-4 text-right">Total Stores</th>
                                     <th className="px-6 py-4 text-right">Total Prescriptions</th>
                                 </tr>

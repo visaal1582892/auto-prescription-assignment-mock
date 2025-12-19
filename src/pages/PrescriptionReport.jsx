@@ -72,7 +72,8 @@ const PrescriptionReport = () => {
     const [filters, setFilters] = useState({
         status: 'All',
         type: 'All',
-        search: ''
+        prescriptionId: '',
+        employee: ''
     });
 
     // Pagination State
@@ -108,14 +109,15 @@ const PrescriptionReport = () => {
             // Type Filter
             if (filters.type !== 'All' && row.type !== filters.type) return false;
 
-            // Search Filter
-            if (filters.search) {
-                const searchLower = filters.search.toLowerCase();
-                return (
-                    row.prescriptionId.toLowerCase().includes(searchLower) ||
-                    row.patientName.toLowerCase().includes(searchLower) ||
-                    row.employeeName.toLowerCase().includes(searchLower)
-                );
+            // Prescription ID Filter
+            if (filters.prescriptionId && !row.prescriptionId.toLowerCase().includes(filters.prescriptionId.toLowerCase())) return false;
+
+            // Employee Filter (Name or ID)
+            if (filters.employee) {
+                const search = filters.employee.toLowerCase();
+                const empName = row.employeeName.toLowerCase();
+                const empId = row.empId.toLowerCase();
+                if (!empName.includes(search) && !empId.includes(search)) return false;
             }
 
             return true;
@@ -257,50 +259,19 @@ const PrescriptionReport = () => {
                             <Download size={16} />
                             Export
                         </button>
+
+                        {(filters.status !== 'All' || filters.type !== 'All' || filters.prescriptionId || filters.employee) && (
+                            <button
+                                onClick={() => setFilters({ status: 'All', type: 'All', prescriptionId: '', employee: '' })}
+                                className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg text-sm font-bold hover:bg-slate-50 transition-all"
+                            >
+                                <XCircle size={16} />
+                                Clear Filters
+                            </button>
+                        )}
                     </div>
                 </div>
-
-                {/* Secondary Filters Bar */}
-                <div className="mt-4 flex flex-wrap items-center gap-4">
-                    <div className="relative flex-1 min-w-[200px]">
-                        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                        <input
-                            type="text"
-                            placeholder="Search by ID, Patient, or Employee..."
-                            className="w-full pl-9 pr-4 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:border-indigo-500"
-                            value={filters.search}
-                            onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
-                        />
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-slate-600">Status:</span>
-                        <select
-                            className="text-sm border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-500"
-                            value={filters.status}
-                            onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))}
-                        >
-                            <option value="All">All Statuses</option>
-                            <option value="Decoded">Decoded</option>
-                            <option value="Not Decoded">Not Decoded</option>
-                            <option value="Returned">Returned</option>
-                        </select>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-slate-600">Type:</span>
-                        <select
-                            className="text-sm border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-500"
-                            value={filters.type}
-                            onChange={(e) => setFilters(prev => ({ ...prev, type: e.target.value }))}
-                        >
-                            <option value="All">All Types</option>
-                            <option value="Normal">Normal</option>
-                            <option value="Green">Green Channel</option>
-                        </select>
-                    </div>
-                </div >
-            </header >
+            </header>
 
             <main className="max-w-7xl mx-auto p-6">
                 <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
@@ -308,12 +279,67 @@ const PrescriptionReport = () => {
                         <table className="w-full text-sm text-left text-slate-600">
                             <thead className="text-xs text-slate-700 uppercase bg-slate-50 border-b border-slate-200">
                                 <tr>
-                                    <th className="px-6 py-4">Prescription ID</th>
-                                    <th className="px-6 py-4">Date & Time</th>
-                                    <th className="px-6 py-4">Employee</th>
-                                    <th className="px-6 py-4">Status</th>
-                                    <th className="px-6 py-4">Type</th>
-                                    <th className="px-6 py-4">Time Taken</th>
+                                    <th className="px-4 py-4 min-w-[140px]">
+                                        <div className="flex flex-col gap-2">
+                                            <span>Prescription ID</span>
+                                            <div className="relative">
+                                                <Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400" />
+                                                <input
+                                                    type="text"
+                                                    placeholder="Search ID..."
+                                                    className="w-full pl-7 pr-2 py-1 text-xs border border-slate-300 rounded focus:outline-none focus:border-indigo-500 font-normal"
+                                                    value={filters.prescriptionId}
+                                                    onChange={(e) => setFilters(prev => ({ ...prev, prescriptionId: e.target.value }))}
+                                                />
+                                            </div>
+                                        </div>
+                                    </th>
+                                    <th className="px-4 py-4 w-32">Date & Time</th>
+                                    <th className="px-4 py-4 min-w-[180px]">
+                                        <div className="flex flex-col gap-2">
+                                            <span>Employee</span>
+                                            <div className="relative">
+                                                <Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400" />
+                                                <input
+                                                    type="text"
+                                                    placeholder="Search Name/ID..."
+                                                    className="w-full pl-7 pr-2 py-1 text-xs border border-slate-300 rounded focus:outline-none focus:border-indigo-500 font-normal"
+                                                    value={filters.employee}
+                                                    onChange={(e) => setFilters(prev => ({ ...prev, employee: e.target.value }))}
+                                                />
+                                            </div>
+                                        </div>
+                                    </th>
+                                    <th className="px-4 py-4 text-center min-w-[140px]">
+                                        <div className="flex flex-col gap-2">
+                                            <span>Status</span>
+                                            <select
+                                                className="w-full px-2 py-1 text-xs border border-slate-300 rounded focus:outline-none focus:border-indigo-500 font-normal"
+                                                value={filters.status}
+                                                onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))}
+                                            >
+                                                <option value="All">All</option>
+                                                <option value="Decoded">Decoded</option>
+                                                <option value="Not Decoded">Not Decoded</option>
+                                                <option value="Returned">Returned</option>
+                                            </select>
+                                        </div>
+                                    </th>
+                                    <th className="px-4 py-4 text-center min-w-[130px]">
+                                        <div className="flex flex-col gap-2">
+                                            <span>Type</span>
+                                            <select
+                                                className="w-full px-2 py-1 text-xs border border-slate-300 rounded focus:outline-none focus:border-indigo-500 font-normal"
+                                                value={filters.type}
+                                                onChange={(e) => setFilters(prev => ({ ...prev, type: e.target.value }))}
+                                            >
+                                                <option value="All">All</option>
+                                                <option value="Normal">Normal</option>
+                                                <option value="Green">Green</option>
+                                            </select>
+                                        </div>
+                                    </th>
+                                    <th className="px-4 py-4 text-center">Time Taken</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">

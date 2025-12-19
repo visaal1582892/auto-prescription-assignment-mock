@@ -79,6 +79,10 @@ const DecoderEfficiencyReport = () => {
         from: subDays(new Date(), 1),
         to: subDays(new Date(), 1)
     });
+    const [filters, setFilters] = useState({
+        empId: '',
+        empName: ''
+    });
     const [isCalendarOpen, setIsCalendarOpen] = useState(false);
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 15;
@@ -93,7 +97,15 @@ const DecoderEfficiencyReport = () => {
         // 1. Filter raw rows
         const filtered = allData.filter(row => {
             const rowDate = parseISO(row.date);
-            return isWithinInterval(rowDate, { start: fromDate, end: toDate });
+            const inDateRange = isWithinInterval(rowDate, { start: fromDate, end: toDate });
+
+            if (!inDateRange) return false;
+
+            // Text Filters
+            if (filters.empId && !row.empId.toLowerCase().includes(filters.empId.toLowerCase())) return false;
+            if (filters.empName && !row.empName.toLowerCase().includes(filters.empName.toLowerCase())) return false;
+
+            return true;
         });
 
         // 2. Aggregate by Employee
@@ -146,7 +158,7 @@ const DecoderEfficiencyReport = () => {
         global.percentage = global.grandTotal > 0 ? ((global.above5Min / global.grandTotal) * 100).toFixed(2) : "0.00";
 
         return { processedData: result, globalTotal: global };
-    }, [allData, dateRange]);
+    }, [allData, dateRange, filters]);
 
 
     // Pagination
@@ -158,7 +170,8 @@ const DecoderEfficiencyReport = () => {
     const totalPages = Math.ceil(processedData.length / itemsPerPage);
 
     // Reset page on filter change
-    useEffect(() => { setCurrentPage(1); }, [dateRange]);
+    // Reset page on filter change
+    useEffect(() => { setCurrentPage(1); }, [dateRange, filters]);
 
 
     const handleExport = () => {
@@ -277,6 +290,17 @@ const DecoderEfficiencyReport = () => {
                             )}
                         </div>
                         <div className="h-8 w-px bg-slate-300 mx-2" />
+
+                        {(filters.empId || filters.empName) && (
+                            <button
+                                onClick={() => setFilters({ empId: '', empName: '' })}
+                                className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg text-sm font-bold hover:bg-slate-50 transition-all shadow-sm"
+                            >
+                                <XCircle size={16} className="text-slate-400" />
+                                Clear Filters
+                            </button>
+                        )}
+
                         <button
                             onClick={handleExport}
                             className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-bold hover:bg-indigo-700 shadow-md shadow-indigo-200 transition-all"
@@ -286,7 +310,7 @@ const DecoderEfficiencyReport = () => {
                         </button>
                     </div>
                 </div>
-            </header>
+            </header >
 
             <main className="max-w-7xl mx-auto p-6">
                 <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
@@ -294,8 +318,30 @@ const DecoderEfficiencyReport = () => {
                         <table className="w-full text-sm text-left text-slate-600">
                             <thead className="text-xs text-slate-700 font-bold uppercase bg-slate-50 border-b border-slate-200">
                                 <tr>
-                                    <th className="px-4 py-4 w-24">Emp Id</th>
-                                    <th className="px-4 py-4">Emp Name</th>
+                                    <th className="px-4 py-4 w-32 min-w-[150px]">
+                                        <div className="flex flex-col gap-2">
+                                            <span>Emp Id</span>
+                                            <input
+                                                type="text"
+                                                placeholder="Search ID..."
+                                                className="w-full px-2 py-1 text-xs border border-slate-300 rounded focus:outline-none focus:border-indigo-500 font-normal"
+                                                value={filters.empId}
+                                                onChange={(e) => setFilters(prev => ({ ...prev, empId: e.target.value }))}
+                                            />
+                                        </div>
+                                    </th>
+                                    <th className="px-4 py-4 min-w-[180px]">
+                                        <div className="flex flex-col gap-2">
+                                            <span>Emp Name</span>
+                                            <input
+                                                type="text"
+                                                placeholder="Search Name..."
+                                                className="w-full px-2 py-1 text-xs border border-slate-300 rounded focus:outline-none focus:border-indigo-500 font-normal"
+                                                value={filters.empName}
+                                                onChange={(e) => setFilters(prev => ({ ...prev, empName: e.target.value }))}
+                                            />
+                                        </div>
+                                    </th>
                                     <th className="px-3 py-4 text-center">5-6 minute</th>
                                     <th className="px-3 py-4 text-center">6-7 minute</th>
                                     <th className="px-3 py-4 text-center">7-8 minute</th>
@@ -390,7 +436,7 @@ const DecoderEfficiencyReport = () => {
                     </div>
                 </div>
             </main>
-        </div>
+        </div >
     );
 };
 
