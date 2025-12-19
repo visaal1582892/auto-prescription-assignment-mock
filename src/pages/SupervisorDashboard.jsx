@@ -22,7 +22,8 @@ import {
     Bell,
     MapPin,
     Phone,
-    User
+    User,
+    DollarSign
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -434,6 +435,20 @@ const SupervisorDashboard = () => {
                                     <MapPin size={16} />
                                     Location Wise Report
                                 </button>
+                                <button
+                                    onClick={() => navigate('/prescription-sale-report')}
+                                    className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-indigo-600 flex items-center gap-2"
+                                >
+                                    <DollarSign size={16} />
+                                    Prescription Sale Report
+                                </button>
+                                <button
+                                    onClick={() => navigate('/decoder-efficiency-report')}
+                                    className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-indigo-600 flex items-center gap-2"
+                                >
+                                    <Clock size={16} />
+                                    Decoder Efficiency Report
+                                </button>
                                 <div className="border-t border-slate-100 my-1"></div>
                                 <button
                                     onClick={handleResetDemo}
@@ -744,8 +759,8 @@ const SupervisorDashboard = () => {
 
                                     // 2. Sort
                                     const sortedData = [...data].sort((a, b) => {
-                                        const valA = performerMode === 'NORMAL' ? a.total7Days : a.green7Days;
-                                        const valB = performerMode === 'NORMAL' ? b.total7Days : b.green7Days;
+                                        const valA = a.total7Days;
+                                        const valB = b.total7Days;
                                         return sortOrder === 'desc' ? valB - valA : valA - valB;
                                     });
 
@@ -778,7 +793,7 @@ const SupervisorDashboard = () => {
                                                                 )}
                                                                 {performerMode === 'GREEN' && (
                                                                     <div className="text-[10px] text-slate-500">
-                                                                        Total: <span className="font-bold text-slate-700">{user.total7Days}</span> <span className="mx-1">|</span> Avg: <span className="font-bold text-indigo-600">{user.avgProdPerHour}</span>/hr
+                                                                        Green Recs: <span className="font-bold text-emerald-600">{user.green7Days}</span> <span className="mx-1">|</span> Avg: <span className="font-bold text-indigo-600">{user.avgProdPerHour}</span>/hr
                                                                     </div>
                                                                 )}
                                                             </div>
@@ -791,8 +806,8 @@ const SupervisorDashboard = () => {
                                                                 </>
                                                             ) : (
                                                                 <>
-                                                                    <div className="text-sm font-bold text-emerald-600">{user.green7Days}</div>
-                                                                    <div className="text-[10px] text-emerald-400/80">Total Green</div>
+                                                                    <div className="text-sm font-bold text-slate-700">{user.total7Days}</div>
+                                                                    <div className="text-[10px] text-slate-400">Total Rx (7d)</div>
                                                                 </>
                                                             )}
                                                         </div>

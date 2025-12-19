@@ -7,9 +7,15 @@ import {
     Search,
     Building,
     FileText,
-    Filter
+    Filter,
+    ChevronDown,
+    Calendar,
+    XCircle
 } from 'lucide-react';
 import { utils, writeFile } from 'xlsx';
+import { DayPicker } from 'react-day-picker';
+import { format, subDays, isAfter, startOfDay, endOfDay, isWithinInterval, parseISO } from 'date-fns';
+import 'react-day-picker/style.css';
 
 const LocationReport = () => {
     const navigate = useNavigate();
@@ -29,26 +35,43 @@ const LocationReport = () => {
 
     const generateStoreData = () => {
         const data = [];
-        LOCATIONS.forEach(loc => {
-            for (let i = 1; i <= loc.stores; i++) {
-                // Generate Store ID: IN + StateCode + CityCode + 5 digit number
-                // e.g., INTGHYD00608. We'll simulate random IDs for realism but keep them cleaner
-                const numSuffix = (10000 + Math.floor(Math.random() * 90000)).toString().substring(1); // 4 digits
-                const storeId = `IN${loc.code}0${numSuffix}`; // Total length roughly matches request
+        const today = new Date();
 
-                data.push({
-                    id: storeId,
-                    storeId: storeId,
-                    state: loc.state,
-                    city: loc.city,
-                    rxCount: Math.floor(Math.random() * 300) + 50 // Random prescriptions yesterday
-                });
-            }
-        });
+        // Generate daily data for past 30 days (excluding today maybe, but lets generate up to today and filter later, 
+        // OR just generate up to yesterday as requested implicitly by "only data until yesterday")
+
+        // Actually, let's generate past 30 days ending YESTERDAY
+        for (let d = 1; d <= 30; d++) {
+            const date = subDays(today, d);
+            const dateStr = format(date, 'yyyy-MM-dd');
+
+            LOCATIONS.forEach(loc => {
+                for (let i = 1; i <= loc.stores; i++) {
+                    const numSuffix = (10000 + i).toString().substring(1);
+                    const storeId = `IN${loc.code}0${numSuffix}`; // Consistent ID per store across days
+
+                    data.push({
+                        id: `${dateStr}-${storeId}`,
+                        date: dateStr,
+                        storeId: storeId,
+                        state: loc.state,
+                        city: loc.city,
+                        rxCount: Math.floor(Math.random() * 300) + 50
+                    });
+                }
+            });
+        }
         return data;
     };
 
     const [allData] = useState(generateStoreData());
+
+    // Default to Yesterday
+    const [dateRange, setDateRange] = useState({
+        from: subDays(new Date(), 1),
+        to: subDays(new Date(), 1)
+    });
+    const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
     // --- Filters State ---
     const [filters, setFilters] = useState({
@@ -57,12 +80,23 @@ const LocationReport = () => {
         search: ""
     });
 
+    // Helper: Get unique states from actual data
     const uniqueStates = ["All", ...new Set(allData.map(d => d.state))];
     const uniqueCities = ["All", ...new Set(allData.filter(d => filters.state === "All" || d.state === filters.state).map(d => d.city))];
 
     // --- Filter Logic ---
     const filteredData = useMemo(() => {
+        // Validation: If no range, return empty 
+        if (!dateRange?.from) return [];
+
+        const fromDate = startOfDay(dateRange.from);
+        const toDate = dateRange.to ? endOfDay(dateRange.to) : endOfDay(fromDate);
+
         return allData.filter(row => {
+            // Date Filter
+            const rowDate = parseISO(row.date);
+            if (!isWithinInterval(rowDate, { start: fromDate, end: toDate })) return false;
+
             const matchesState = filters.state === "All" || row.state === filters.state;
             const matchesCity = filters.city === "All" || row.city === filters.city;
             const matchesSearch = row.storeId.toLowerCase().includes(filters.search.toLowerCase()) ||
@@ -70,17 +104,41 @@ const LocationReport = () => {
 
             return matchesState && matchesCity && matchesSearch;
         });
-    }, [allData, filters]);
+    }, [allData, filters, dateRange]);
+
+    // --- Grouping Logic ---
+    const groupedData = useMemo(() => {
+        const groups = {};
+        filteredData.forEach(row => {
+            const key = `${row.state}-${row.city}`;
+            if (!groups[key]) {
+                groups[key] = {
+                    id: key,
+                    state: row.state,
+                    city: row.city,
+                    uniqueStores: new Set(),
+                    rxCount: 0
+                };
+            }
+            groups[key].uniqueStores.add(row.storeId);
+            groups[key].rxCount += row.rxCount;
+        });
+
+        return Object.values(groups).map(group => ({
+            ...group,
+            storeCount: group.uniqueStores.size
+        }));
+    }, [filteredData]);
 
     // --- Pagination Logic ---
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 10;
 
-    const totalPages = Math.ceil(filteredData.length / itemsPerPage);
+    const totalPages = Math.ceil(groupedData.length / itemsPerPage);
     const paginatedData = useMemo(() => {
         const start = (currentPage - 1) * itemsPerPage;
-        return filteredData.slice(start, start + itemsPerPage);
-    }, [filteredData, currentPage]);
+        return groupedData.slice(start, start + itemsPerPage);
+    }, [groupedData, currentPage]);
 
     // Reset page on filter change
     useEffect(() => {
@@ -88,11 +146,11 @@ const LocationReport = () => {
     }, [filters]);
 
     const handleExport = () => {
-        const exportData = filteredData.map(row => ({
-            "Store ID": row.storeId,
+        const exportData = groupedData.map(row => ({
             "State": row.state,
             "City": row.city,
-            "Prescriptions Received": row.rxCount
+            "Total Stores": row.storeCount,
+            "Total Prescriptions": row.rxCount
         }));
 
         const ws = utils.json_to_sheet(exportData);
@@ -102,7 +160,7 @@ const LocationReport = () => {
     };
 
     // Calculate Totals
-    const totalStores = filteredData.length;
+    const totalStores = new Set(filteredData.map(d => d.storeId)).size;
     const totalRx = filteredData.reduce((sum, row) => sum + row.rxCount, 0);
 
     return (
@@ -122,11 +180,82 @@ const LocationReport = () => {
                                 <MapPin className="text-indigo-600" size={24} />
                                 Location Wise Report
                             </h1>
-                            <p className="text-xs text-slate-500">Store-level performance for Yesterday</p>
+                            <p className="text-xs text-slate-500">
+                                {dateRange?.from ? (
+                                    <>
+                                        {format(dateRange.from, 'MMM dd, yyyy')}
+                                        {dateRange.to && dateRange.to.getTime() !== dateRange.from.getTime() && ` - ${format(dateRange.to, 'MMM dd, yyyy')}`}
+                                    </>
+                                ) : 'Select Date Range'}
+                            </p>
                         </div>
                     </div>
 
                     <div className="flex flex-wrap items-center gap-3">
+                        {/* Date Calendar Filter */}
+                        <div className="relative">
+                            <button
+                                onClick={() => setIsCalendarOpen(!isCalendarOpen)}
+                                className="flex items-center gap-2 px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm text-slate-700 hover:bg-slate-50 shadow-sm transition-all"
+                            >
+                                <Calendar size={16} className="text-slate-500" />
+                                <span>
+                                    {dateRange?.from ? (
+                                        <>
+                                            {format(dateRange.from, 'MMM dd')}
+                                            {dateRange.to && dateRange.to.getTime() !== dateRange.from.getTime() ? ` - ${format(dateRange.to, 'MMM dd')}` : ''}
+                                        </>
+                                    ) : 'Select Dates'}
+                                </span>
+                                <ChevronDown size={14} className="text-slate-400" />
+                            </button>
+
+                            {isCalendarOpen && (
+                                <div className="absolute right-0 top-full mt-2 z-50 bg-white rounded-xl shadow-xl border border-slate-100 p-2 animate-in fade-in zoom-in-95 duration-100">
+                                    <div className="flex justify-end p-2 border-b border-slate-100 mb-2">
+                                        <button onClick={() => setIsCalendarOpen(false)} className="text-slate-400 hover:text-slate-600"><XCircle size={16} /></button>
+                                    </div>
+                                    <DayPicker
+                                        mode="range"
+                                        selected={dateRange}
+                                        onSelect={(range) => {
+                                            if (range?.from) {
+                                                setDateRange(range);
+                                            }
+                                        }}
+                                        // Disable today and future dates (start disabling from Today)
+                                        disabled={{ after: subDays(new Date(), 1) }}
+                                        pagedNavigation
+                                        showOutsideDays
+                                        classNames={{
+                                            months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
+                                            month: "space-y-3",
+                                            caption: "flex justify-between pt-1 relative items-center px-2",
+                                            caption_label: "text-xs font-bold text-slate-700",
+                                            nav: "flex items-center space-x-1",
+                                            nav_button: "h-6 w-6 bg-transparent hover:bg-slate-100 p-0 rounded-md transition-colors flex items-center justify-center text-slate-500 hover:text-indigo-600",
+                                            nav_button_previous: "absolute left-0",
+                                            nav_button_next: "absolute right-0",
+                                            table: "w-full border-collapse space-y-1",
+                                            head_row: "flex",
+                                            head_cell: "text-slate-400 rounded-md w-7 font-normal text-[0.65rem] uppercase",
+                                            row: "flex w-full mt-1",
+                                            cell: "text-slate-600 rounded-md h-7 w-7 text-[0.7rem] relative [&:has([aria-selected])]:bg-indigo-50 first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20 p-0",
+                                            day: "h-7 w-7 p-0 font-medium aria-selected:opacity-100 hover:bg-indigo-50 focus:bg-indigo-50 rounded-md transition-all",
+                                            day_selected: "bg-indigo-600 text-white hover:bg-indigo-600 hover:text-white focus:bg-indigo-600 focus:text-white rounded-md",
+                                            day_today: "bg-slate-100 text-slate-900 font-bold",
+                                            day_outside: "text-slate-300 opacity-50",
+                                            day_disabled: "text-slate-300 opacity-30",
+                                            day_range_middle: "!bg-indigo-50 !text-indigo-600 !rounded-none",
+                                            day_range_start: "!bg-indigo-600 !text-white !rounded-l-md !rounded-r-none",
+                                            day_range_end: "!bg-indigo-600 !text-white !rounded-r-md !rounded-l-none",
+                                            day_hidden: "invisible",
+                                        }}
+                                    />
+                                </div>
+                            )}
+                        </div>
+
                         {/* State Filter */}
                         <div className="flex items-center gap-2 bg-slate-100 px-3 py-2 rounded-lg border border-slate-200">
                             <Filter size={14} className="text-slate-400" />
@@ -183,7 +312,7 @@ const LocationReport = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                     <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
                         <div>
-                            <p className="text-sm font-bold text-slate-500 uppercase">Stores Displayed</p>
+                            <p className="text-sm font-bold text-slate-500 uppercase">Total Stores</p>
                             <p className="text-2xl font-bold text-slate-900">{totalStores.toLocaleString()}</p>
                         </div>
                         <div className="p-3 bg-blue-50 text-blue-600 rounded-lg">
@@ -206,43 +335,36 @@ const LocationReport = () => {
                         <table className="w-full text-sm text-left text-slate-600">
                             <thead className="text-xs text-slate-700 uppercase bg-slate-50 border-b border-slate-200">
                                 <tr>
-                                    <th className="px-6 py-4">Store ID</th>
                                     <th className="px-6 py-4">State</th>
                                     <th className="px-6 py-4">City</th>
-                                    <th className="px-6 py-4 text-right">Prescriptions Received</th>
+                                    <th className="px-6 py-4 text-right">Total Stores</th>
+                                    <th className="px-6 py-4 text-right">Total Prescriptions</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
                                 {paginatedData.length > 0 ? (
                                     paginatedData.map((row) => (
                                         <tr key={row.id} className="bg-white hover:bg-slate-50 transition-colors">
-                                            <td className="px-6 py-4 font-mono font-bold text-slate-800">{row.storeId}</td>
-                                            <td className="px-6 py-4 font-medium text-slate-600">{row.state}</td>
+                                            <td className="px-6 py-4 font-bold text-slate-800">{row.state}</td>
                                             <td className="px-6 py-4 font-medium text-slate-600">{row.city}</td>
+                                            <td className="px-6 py-4 text-right font-medium text-slate-600">{row.storeCount}</td>
                                             <td className="px-6 py-4 text-right font-mono font-bold text-indigo-600">{row.rxCount.toLocaleString()}</td>
                                         </tr>
                                     ))
                                 ) : (
                                     <tr>
                                         <td colSpan="4" className="px-6 py-12 text-center text-slate-400">
-                                            <p>No stores found matching filters.</p>
+                                            <p>No locations found matching filters.</p>
                                         </td>
                                     </tr>
                                 )}
                             </tbody>
-                            <tfoot className="bg-slate-50 border-t border-slate-200 font-bold">
-                                <tr>
-                                    <td className="px-6 py-4 text-slate-800">Total ({totalStores} Stores)</td>
-                                    <td className="px-6 py-4"></td>
-                                    <td className="px-6 py-4"></td>
-                                    <td className="px-6 py-4 text-right text-indigo-700">{totalRx.toLocaleString()}</td>
-                                </tr>
-                            </tfoot>
+
                         </table>
                     </div>
                     {/* Pagination Controls */}
                     <div className="bg-slate-50 px-6 py-4 border-t border-slate-200 text-xs text-slate-500 flex justify-between items-center">
-                        <span>Showing {paginatedData.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0} - {Math.min(currentPage * itemsPerPage, filteredData.length)} of {filteredData.length} records</span>
+                        <span>Showing {paginatedData.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0} - {Math.min(currentPage * itemsPerPage, groupedData.length)} of {groupedData.length} records</span>
                         <div className="flex gap-2 items-center">
                             <span className="mr-2 text-slate-400">Page {currentPage} of {totalPages}</span>
                             <button

@@ -1,166 +1,195 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import {
-    Calendar,
-    Filter,
-    Download,
-    ArrowLeft,
-    Search,
-    ChevronDown,
-    FileText,
-    CheckCircle,
-    XCircle,
-    AlertTriangle
-} from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import {
+    ArrowLeft,
+    Clock,
+    Calendar,
+    ChevronDown,
+    XCircle,
+    Download,
+    User
+} from 'lucide-react';
 import { utils, writeFile } from 'xlsx';
 import { DayPicker } from 'react-day-picker';
-import { format, subDays, isAfter, startOfDay, endOfDay, isWithinInterval, parseISO } from 'date-fns';
+import { format, subDays, startOfDay, endOfDay, isWithinInterval, parseISO } from 'date-fns';
 import 'react-day-picker/style.css';
 
-const PrescriptionReport = () => {
+const DecoderEfficiencyReport = () => {
     const navigate = useNavigate();
 
-    // --- Mock Data Generation (Daily for past 30 days) ---
+    // --- Mock Data Generation ---
     const generateData = () => {
         const data = [];
         const today = new Date();
-        const statuses = ['Decoded', 'Not Decoded', 'Returned'];
-        const types = ['Normal', 'Green'];
-        const employees = ["Alice Cooper", "Bob Martin", "Charlie Day", "Diana Prince", "Evan Wright"];
+        const NAMES = [
+            "Kolla Santosh Kumar", "Seeta Balaratnam", "Gillalla Vanitha Reddy", "Perumala Rajesh", "Kasapuram Anuradha",
+            "Bachu Sagar", "Sudip Chatterjee", "Saivally Panduga", "Fayaz Ahmed", "Gattagalla Pruthvi",
+            "KATGENORE SHIVA", "Shaik Jaffer Ahmed", "Devulapelly Anila Kumar", "Undrakonda Renuka Devi", "Pallipati Sukumar",
+            "N Umesh", "Sudha Karaturi", "D AJAY RAO", "Mohd Abdul Jabbar Khan", "PAVAN KUMAR GUPTA",
+            "MIRZA ALTAF BAIG", "Ramineni Mahender", "Suresh Kumar", "Ramesh Babu", "Venkatesh Rao",
+            "Lakshmi Narayana", "Srinivas Murthy", "Manish Pandey", "Deepak Chopra", "Amitabh Bachan",
+            "Shahrukh Khan", "Salman Khan", "Priya Varrier", "Samantha Ruth", "Rashmika Mandanna",
+            "Keerthy Suresh", "Sai Pallavi", "Naga Chaitanya", "Vijay Devarakonda", "Prabhas Raju",
+            "Allu Arjun", "Mahesh Babu", "Ram Charan", "Jr NTR", "Pawan Kalyan"
+        ];
 
-        // Generate for past 30 days
-        for (let d = 0; d < 30; d++) {
+        // Generate Daily Records for past 30 days for each employee
+        for (let d = 1; d <= 30; d++) {
             const date = subDays(today, d);
             const dateStr = format(date, 'yyyy-MM-dd');
 
-            // Generate 10-50 prescriptions per day
-            const count = Math.floor(Math.random() * 40) + 10;
+            NAMES.forEach((name, idx) => {
+                // Determine randomized totals for the day matching image scale (100s)
+                const grandTotal = Math.floor(Math.random() * 400) + 150; // 150-550 total per day
 
-            for (let i = 0; i < count; i++) {
-                const time = new Date(date);
-                time.setHours(Math.floor(Math.random() * 24), Math.floor(Math.random() * 60));
+                // Break down into buckets (values similar to image: 0-25 range)
+                const b5_6 = Math.floor(Math.random() * 20);
+                const b6_7 = Math.floor(Math.random() * 19);
+                const b7_8 = Math.floor(Math.random() * 15);
+                const b8_9 = Math.floor(Math.random() * 10);
+                const b9_10 = Math.floor(Math.random() * 8);
+                const bOver10 = Math.floor(Math.random() * 25); // Can be higher sometimes
 
-                const status = statuses[Math.floor(Math.random() * statuses.length)];
-                const type = types[Math.floor(Math.random() * types.length)];
+                // Ensure total >= sum of buckets (the rest are < 5 mins)
+                const sumBuckets = b5_6 + b6_7 + b7_8 + b8_9 + b9_10 + bOver10;
+                const safeTotal = Math.max(grandTotal, sumBuckets + Math.floor(Math.random() * 50));
 
                 data.push({
-                    id: `${dateStr}-${i}`,
-                    prescriptionId: `RX-${10000 + startOfDay(date).getTime() + i}`, // Pseudo-unique ID
+                    id: `${dateStr}-${idx}`,
                     date: dateStr,
-                    timestamp: time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                    patientName: `Patient ${Math.floor(Math.random() * 1000)}`,
-                    employeeName: status === 'Not Decoded' ? '-' : employees[Math.floor(Math.random() * employees.length)],
-                    empId: status === 'Not Decoded' ? '-' : `EMP-${1000 + Math.floor(Math.random() * 100)}`,
-                    status: status,
-                    type: type,
-                    timeTaken: status === 'Decoded' ? `${Math.floor(Math.random() * 5) + 1}m ${Math.floor(Math.random() * 60)}s` : '-'
+                    empId: `EMP${10000 + idx}`,
+                    empName: name,
+                    b5_6,
+                    b6_7,
+                    b7_8,
+                    b8_9,
+                    b9_10,
+                    bOver10,
+                    grandTotal: safeTotal
                 });
-            }
+            });
         }
-        return data.sort((a, b) => b.date.localeCompare(a.date) || b.timestamp.localeCompare(a.timestamp));
+        return data;
     };
 
     const [allData] = useState(generateData());
 
-    // Date Range State
+    // --- State ---
     const [dateRange, setDateRange] = useState({
-        from: new Date(),
-        to: new Date()
+        from: subDays(new Date(), 1),
+        to: subDays(new Date(), 1)
     });
     const [isCalendarOpen, setIsCalendarOpen] = useState(false);
-
-    const [filters, setFilters] = useState({
-        status: 'All',
-        type: 'All',
-        search: ''
-    });
-
-    // Pagination State
     const [currentPage, setCurrentPage] = useState(1);
-    const itemsPerPage = 10;
+    const itemsPerPage = 15;
 
-
-
-    const changeMonth = (offset) => {
-        const newDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + offset, 1);
-        // Restrict navigation to 2025
-        if (newDate.getFullYear() === 2025) {
-            setCurrentMonth(newDate);
-        }
-    };
-
-    // --- Filtering Logic ---
-    const filteredData = useMemo(() => {
-        // Validation: If no range, return empty (shouldn't happen due to enforcement)
-        if (!dateRange?.from) return [];
+    // --- Aggregation Logic ---
+    const { processedData, globalTotal } = useMemo(() => {
+        if (!dateRange?.from) return { processedData: [], globalTotal: null };
 
         const fromDate = startOfDay(dateRange.from);
         const toDate = dateRange.to ? endOfDay(dateRange.to) : endOfDay(fromDate);
 
-        return allData.filter(row => {
-            // Date Range Filter
+        // 1. Filter raw rows
+        const filtered = allData.filter(row => {
             const rowDate = parseISO(row.date);
-            if (!isWithinInterval(rowDate, { start: fromDate, end: toDate })) return false;
-
-            // Status Filter
-            if (filters.status !== 'All' && row.status !== filters.status) return false;
-
-            // Type Filter
-            if (filters.type !== 'All' && row.type !== filters.type) return false;
-
-            // Search Filter
-            if (filters.search) {
-                const searchLower = filters.search.toLowerCase();
-                return (
-                    row.prescriptionId.toLowerCase().includes(searchLower) ||
-                    row.patientName.toLowerCase().includes(searchLower) ||
-                    row.employeeName.toLowerCase().includes(searchLower)
-                );
-            }
-
-            return true;
+            return isWithinInterval(rowDate, { start: fromDate, end: toDate });
         });
-    }, [allData, filters, dateRange]);
 
-    // Pagination Logic
-    const totalPages = Math.ceil(filteredData.length / itemsPerPage);
+        // 2. Aggregate by Employee
+        const empMap = {};
+
+        filtered.forEach(row => {
+            if (!empMap[row.empId]) {
+                empMap[row.empId] = {
+                    empId: row.empId,
+                    empName: row.empName,
+                    b5_6: 0, b6_7: 0, b7_8: 0, b8_9: 0, b9_10: 0, bOver10: 0,
+                    grandTotal: 0
+                };
+            }
+            const emp = empMap[row.empId];
+            emp.b5_6 += row.b5_6;
+            emp.b6_7 += row.b6_7;
+            emp.b7_8 += row.b7_8;
+            emp.b8_9 += row.b8_9;
+            emp.b9_10 += row.b9_10;
+            emp.bOver10 += row.bOver10;
+            emp.grandTotal += row.grandTotal;
+        });
+
+        // 3. Compute Calculated Columns & Global Total
+        let global = {
+            empId: 'Grand Total', empName: '',
+            b5_6: 0, b6_7: 0, b7_8: 0, b8_9: 0, b9_10: 0, bOver10: 0,
+            grandTotal: 0, above5Min: 0
+        };
+
+        const result = Object.values(empMap).map(emp => {
+            const above5Min = emp.b5_6 + emp.b6_7 + emp.b7_8 + emp.b8_9 + emp.b9_10 + emp.bOver10;
+            const percentage = emp.grandTotal > 0 ? ((above5Min / emp.grandTotal) * 100).toFixed(2) : "0.00";
+
+            // Add to global
+            global.b5_6 += emp.b5_6;
+            global.b6_7 += emp.b6_7;
+            global.b7_8 += emp.b7_8;
+            global.b8_9 += emp.b8_9;
+            global.b9_10 += emp.b9_10;
+            global.bOver10 += emp.bOver10;
+            global.grandTotal += emp.grandTotal;
+            global.above5Min += above5Min;
+
+            return { ...emp, above5Min, percentage };
+        });
+
+        // Final Global Percentage (Weighted Average)
+        global.percentage = global.grandTotal > 0 ? ((global.above5Min / global.grandTotal) * 100).toFixed(2) : "0.00";
+
+        return { processedData: result, globalTotal: global };
+    }, [allData, dateRange]);
+
+
+    // Pagination
     const paginatedData = useMemo(() => {
         const start = (currentPage - 1) * itemsPerPage;
-        return filteredData.slice(start, start + itemsPerPage);
-    }, [filteredData, currentPage]);
+        return processedData.slice(start, start + itemsPerPage);
+    }, [processedData, currentPage]);
 
-    // Reset to page 1 when filters change
-    useEffect(() => {
-        setCurrentPage(1);
-    }, [filters]);
+    const totalPages = Math.ceil(processedData.length / itemsPerPage);
 
-    // --- Export Logic ---
+    // Reset page on filter change
+    useEffect(() => { setCurrentPage(1); }, [dateRange]);
+
+
     const handleExport = () => {
-        const exportData = filteredData.map(row => ({
-            "Prescription ID": row.prescriptionId,
-            "Date": row.date,
-            "Time": row.timestamp,
-            "Patient Name": row.patientName,
-            "Employee Name": row.employeeName,
-            "Employee ID": row.empId, // New Export Column
-            "Status": row.status,
-            "Type": row.type,
-            "Time Taken": row.timeTaken
+        // Export Logic including Grand Total
+        const exportList = [...processedData, { ...globalTotal, empId: 'Grand Total', empName: '' }];
+
+        const exportData = exportList.map(row => ({
+            "Emp Id": row.empId,
+            "Emp Name": row.empName,
+            "5-6 minute": row.b5_6,
+            "6-7 minute": row.b6_7,
+            "7-8 minute": row.b7_8,
+            "8-9 minute": row.b8_9,
+            "9-10 minute": row.b9_10,
+            "Over 10 minutes": row.bOver10,
+            "Grand Total": row.grandTotal,
+            "Above 5 Minute Decoded": row.above5Min,
+            "Percentage": `${row.percentage}%`
         }));
 
         const ws = utils.json_to_sheet(exportData);
         const wb = utils.book_new();
-        utils.book_append_sheet(wb, ws, "Prescription Report");
-        writeFile(wb, "Prescription_Report.xlsx");
+        utils.book_append_sheet(wb, ws, "Decoder_Efficiency");
+        writeFile(wb, "Decoder_Efficiency_Report.xlsx");
     };
-
-
 
     return (
         <div className="min-h-screen bg-slate-50 font-sans text-slate-800">
             {/* Header */}
             <header className="bg-white border-b border-slate-200 px-6 py-4 sticky top-0 z-30 shadow-sm">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
                     <div className="flex items-center gap-4">
                         <button
                             onClick={() => navigate('/supervisor')}
@@ -170,8 +199,8 @@ const PrescriptionReport = () => {
                         </button>
                         <div>
                             <h1 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-                                <FileText className="text-indigo-600" size={24} />
-                                Prescription Report
+                                <Clock className="text-indigo-600" size={24} />
+                                Decoder Efficiency Report
                             </h1>
                             <p className="text-xs text-slate-500">
                                 {dateRange?.from ? (
@@ -216,7 +245,7 @@ const PrescriptionReport = () => {
                                                 setDateRange(range);
                                             }
                                         }}
-                                        disabled={{ after: new Date() }}
+                                        disabled={{ after: subDays(new Date(), 1) }}
                                         pagedNavigation
                                         showOutsideDays
                                         classNames={{
@@ -247,9 +276,7 @@ const PrescriptionReport = () => {
                                 </div>
                             )}
                         </div>
-
                         <div className="h-8 w-px bg-slate-300 mx-2" />
-
                         <button
                             onClick={handleExport}
                             className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-bold hover:bg-indigo-700 shadow-md shadow-indigo-200 transition-all"
@@ -259,117 +286,78 @@ const PrescriptionReport = () => {
                         </button>
                     </div>
                 </div>
-
-                {/* Secondary Filters Bar */}
-                <div className="mt-4 flex flex-wrap items-center gap-4">
-                    <div className="relative flex-1 min-w-[200px]">
-                        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                        <input
-                            type="text"
-                            placeholder="Search by ID, Patient, or Employee..."
-                            className="w-full pl-9 pr-4 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:border-indigo-500"
-                            value={filters.search}
-                            onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
-                        />
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-slate-600">Status:</span>
-                        <select
-                            className="text-sm border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-500"
-                            value={filters.status}
-                            onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))}
-                        >
-                            <option value="All">All Statuses</option>
-                            <option value="Decoded">Decoded</option>
-                            <option value="Not Decoded">Not Decoded</option>
-                            <option value="Returned">Returned</option>
-                        </select>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-slate-600">Type:</span>
-                        <select
-                            className="text-sm border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-500"
-                            value={filters.type}
-                            onChange={(e) => setFilters(prev => ({ ...prev, type: e.target.value }))}
-                        >
-                            <option value="All">All Types</option>
-                            <option value="Normal">Normal</option>
-                            <option value="Green">Green Channel</option>
-                        </select>
-                    </div>
-                </div >
-            </header >
+            </header>
 
             <main className="max-w-7xl mx-auto p-6">
                 <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                     <div className="overflow-x-auto">
                         <table className="w-full text-sm text-left text-slate-600">
-                            <thead className="text-xs text-slate-700 uppercase bg-slate-50 border-b border-slate-200">
+                            <thead className="text-xs text-slate-700 font-bold uppercase bg-slate-50 border-b border-slate-200">
                                 <tr>
-                                    <th className="px-6 py-4">Prescription ID</th>
-                                    <th className="px-6 py-4">Date & Time</th>
-                                    <th className="px-6 py-4">Employee</th>
-                                    <th className="px-6 py-4">Status</th>
-                                    <th className="px-6 py-4">Type</th>
-                                    <th className="px-6 py-4">Time Taken</th>
+                                    <th className="px-4 py-4 w-24">Emp Id</th>
+                                    <th className="px-4 py-4">Emp Name</th>
+                                    <th className="px-3 py-4 text-center">5-6 minute</th>
+                                    <th className="px-3 py-4 text-center">6-7 minute</th>
+                                    <th className="px-3 py-4 text-center">7-8 minute</th>
+                                    <th className="px-3 py-4 text-center">8-9 minute</th>
+                                    <th className="px-3 py-4 text-center">9-10 minute</th>
+                                    <th className="px-3 py-4 text-center">Over 10 minutes</th>
+                                    <th className="px-3 py-4 text-center bg-slate-100 text-slate-900">Grand Total</th>
+                                    <th className="px-3 py-4 text-center">Above 5 Minute<br />Decoded</th>
+                                    <th className="px-3 py-4 text-center">Percentage</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
+                                {/* Pinned Grand Total Row */}
+                                {globalTotal && (
+                                    <tr className="bg-indigo-50 font-bold border-b-2 border-indigo-100 text-indigo-900">
+                                        <td className="px-4 py-3" colSpan="2">Grand Total</td>
+                                        <td className="px-3 py-3 text-center">{globalTotal.b5_6}</td>
+                                        <td className="px-3 py-3 text-center">{globalTotal.b6_7}</td>
+                                        <td className="px-3 py-3 text-center">{globalTotal.b7_8}</td>
+                                        <td className="px-3 py-3 text-center">{globalTotal.b8_9}</td>
+                                        <td className="px-3 py-3 text-center">{globalTotal.b9_10}</td>
+                                        <td className="px-3 py-3 text-center">{globalTotal.bOver10}</td>
+                                        <td className="px-3 py-3 text-center bg-indigo-100">{globalTotal.grandTotal}</td>
+                                        <td className="px-3 py-3 text-center">{globalTotal.above5Min}</td>
+                                        <td className="px-3 py-3 text-center">{globalTotal.percentage}%</td>
+                                    </tr>
+                                )}
+
+                                {/* Paginated Data */}
                                 {paginatedData.length > 0 ? (
                                     paginatedData.map((row) => (
-                                        <tr key={row.id} className="bg-white hover:bg-slate-50 transition-colors">
-                                            <td className="px-6 py-4 font-mono font-medium text-indigo-600">{row.prescriptionId}</td>
-                                            <td className="px-6 py-4">
-                                                <div className="flex flex-col">
-                                                    <span className="font-medium text-slate-900">{row.date}</span>
-                                                    <span className="text-xs text-slate-500">{row.timestamp}</span>
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <div className="flex flex-col">
-                                                    <span className="font-medium text-slate-900">{row.employeeName}</span>
-                                                    <span className="text-xs text-slate-500">{row.empId}</span>
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <span className={`px-2 py-1 rounded text-xs font-bold flex items-center gap-1 w-fit
-                                                    ${row.status === 'Decoded' ? 'bg-emerald-50 text-emerald-700' :
-                                                        row.status === 'Returned' ? 'bg-red-50 text-red-700' :
-                                                            'bg-slate-100 text-slate-600'}`}>
-                                                    {row.status === 'Decoded' && <CheckCircle size={12} />}
-                                                    {row.status === 'Returned' && <XCircle size={12} />}
-                                                    {row.status === 'Not Decoded' && <AlertTriangle size={12} />}
-                                                    {row.status}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <span className={`px-2 py-1 rounded text-xs font-bold 
-                                                    ${row.type === 'Green' ? 'bg-green-100 text-green-800' : 'bg-blue-50 text-blue-700'}`}>
-                                                    {row.type}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-4 font-mono text-xs">{row.timeTaken}</td>
+                                        <tr key={row.empId} className="hover:bg-slate-50 transition-colors">
+                                            <td className="px-4 py-3 font-medium">{row.empId}</td>
+                                            <td className="px-4 py-3 font-medium text-slate-800">{row.empName}</td>
+                                            <td className="px-3 py-3 text-center text-slate-500">{row.b5_6}</td>
+                                            <td className="px-3 py-3 text-center text-slate-500">{row.b6_7}</td>
+                                            <td className="px-3 py-3 text-center text-slate-500">{row.b7_8}</td>
+                                            <td className="px-3 py-3 text-center text-slate-500">{row.b8_9}</td>
+                                            <td className="px-3 py-3 text-center text-slate-500">{row.b9_10}</td>
+                                            <td className="px-3 py-3 text-center text-slate-500">{row.bOver10}</td>
+                                            <td className="px-3 py-3 text-center font-bold bg-slate-50 text-slate-900">{row.grandTotal}</td>
+                                            <td className="px-3 py-3 text-center font-medium text-indigo-600">{row.above5Min}</td>
+                                            <td className="px-3 py-3 text-center">{row.percentage}%</td>
                                         </tr>
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan="7" className="px-6 py-12 text-center text-slate-400">
-                                            <Filter size={48} className="mx-auto mb-4 opacity-20" />
-                                            <p>No records found matching your filters.</p>
+                                        <td colSpan="11" className="px-6 py-12 text-center text-slate-400">
+                                            No data available for the selected range.
                                         </td>
                                     </tr>
                                 )}
                             </tbody>
                         </table>
                     </div>
+                    {/* Pagination Controls */}
                     <div className="bg-slate-50 px-6 py-4 border-t border-slate-200 text-xs text-slate-500 flex justify-between items-center">
-                        <span>Showing {Math.min((currentPage - 1) * itemsPerPage + 1, filteredData.length)} - {Math.min(currentPage * itemsPerPage, filteredData.length)} of {filteredData.length} records</span>
+                        <span>Showing {paginatedData.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0} - {Math.min(currentPage * itemsPerPage, processedData.length)} of {processedData.length} employees</span>
                         <div className="flex gap-2 items-center">
                             <span className="mr-2 text-slate-400">Page {currentPage} of {totalPages}</span>
                             <button
-                                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                                 disabled={currentPage === 1}
                                 className="px-2 py-1 text-[10px] font-bold text-slate-500 hover:text-indigo-600 disabled:opacity-30 disabled:hover:text-slate-500 border border-slate-300 rounded bg-white hover:bg-slate-50"
                             >
@@ -392,7 +380,7 @@ const PrescriptionReport = () => {
                             </div>
 
                             <button
-                                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
                                 disabled={currentPage === totalPages}
                                 className="px-2 py-1 text-[10px] font-bold text-slate-500 hover:text-indigo-600 disabled:opacity-30 disabled:hover:text-slate-500 border border-slate-300 rounded bg-white hover:bg-slate-50"
                             >
@@ -402,8 +390,8 @@ const PrescriptionReport = () => {
                     </div>
                 </div>
             </main>
-        </div >
+        </div>
     );
 };
 
-export default PrescriptionReport;
+export default DecoderEfficiencyReport;

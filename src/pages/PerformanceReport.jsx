@@ -6,10 +6,15 @@ import {
     ArrowLeft,
     Search,
     ChevronDown,
-    Check
+    Check,
+    X,
+    Clock
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { utils, writeFile } from 'xlsx';
+import { DayPicker } from 'react-day-picker';
+import { format, subDays, isAfter, startOfDay, endOfDay, isWithinInterval, parseISO } from 'date-fns';
+import 'react-day-picker/style.css';
 
 const PerformanceReport = () => {
     const navigate = useNavigate();
@@ -17,30 +22,36 @@ const PerformanceReport = () => {
     const EMPLOYEES = ["Alice Cooper", "Bob Martin", "Charlie Day", "Diana Prince", "Evan Wright", "Frank Castle", "Grace Ho", "Henry Wu"];
 
     // --- Mock Data Generation (Daily for 2025) ---
-    // --- Mock Data Generation (Daily for 2025) ---
+    // --- Mock Data Generation (Daily for past 30 days) ---
     const generateData = () => {
         const data = [];
-        const todayStr = new Date().toISOString().split('T')[0];
+        const today = new Date();
 
-        // Ensure every employee has an entry for Today with initial VALID values (started day)
-        EMPLOYEES.forEach((name, idx) => {
-            data.push({
-                id: 2000 + idx, // Unique IDs
-                name,
-                date: todayStr,
-                hours: Math.floor(Math.random() * 4) + 2, // Already worked 2-6 hours
-                rxDecoded: Math.floor(Math.random() * 30) + 10, // already decoded some
-                productsDecoded: Math.floor(Math.random() * 80) + 20,
-                greenCount: Math.floor(Math.random() * 5),
-                breakHours: parseFloat((Math.random() * 0.5).toFixed(2)),
-                awayHours: 0,
-                breakCount: Math.floor(Math.random() * 2),
+        // Generate for past 30 days
+        for (let i = 0; i < 30; i++) {
+            const date = subDays(today, i);
+            const dateStr = format(date, 'yyyy-MM-dd');
 
-                submitAndCall: Math.floor(Math.random() * 15), // "Submit and Call" clicks
-                greenSentCount: Math.floor(Math.random() * 10) // New 'Green Sent' Metric
+            EMPLOYEES.forEach((name, idx) => {
+                // Randomly skip some employees on some days (simulating weekends/leave)
+                if (i > 0 && Math.random() > 0.8) return;
+
+                data.push({
+                    id: `${dateStr}-${idx}`, // Unique ID based on date and employee
+                    name,
+                    date: dateStr,
+                    hours: Math.floor(Math.random() * 6) + 2,
+                    rxDecoded: Math.floor(Math.random() * 50) + 10,
+                    productsDecoded: Math.floor(Math.random() * 100) + 20,
+                    greenCount: Math.floor(Math.random() * 10),
+                    breakHours: parseFloat((Math.random() * 1).toFixed(2)),
+                    awayHours: i === 0 ? 0 : parseFloat((Math.random() * 0.5).toFixed(2)), // Some away hours in past
+                    breakCount: Math.floor(Math.random() * 3),
+                    submitAndCall: Math.floor(Math.random() * 10),
+                    greenSentCount: Math.floor(Math.random() * 8)
+                });
             });
-        });
-
+        }
         return data;
     };
 
@@ -48,23 +59,25 @@ const PerformanceReport = () => {
 
     // --- Filter State ---
     // Default to Today
-    const today = new Date();
-    const todayStr = today.toISOString().split('T')[0];
-
-    // We only care about Today's data now
+    const [dateRange, setDateRange] = useState({
+        from: new Date(),
+        to: new Date()
+    });
+    const [isCalendarOpen, setIsCalendarOpen] = useState(false);
     const [filters, setFilters] = useState({ name: "" });
 
     // --- Real-time Simulation for Today ---
     useEffect(() => {
+        const todayStr = format(new Date(), 'yyyy-MM-dd');
+
         const interval = setInterval(() => {
             setAllData(prevData => {
                 return prevData.map(row => {
                     if (row.date === todayStr) {
                         // Simulate work happening
-                        // Time updates every second (Realistically)
                         const newHours = row.hours + (1 / 3600);
 
-                        // Metrics update RARELY (Slowly)
+                        // Metrics update RARELY
                         const newRx = row.rxDecoded + (Math.random() > 0.998 ? 1 : 0);
                         const newProducts = row.productsDecoded + (Math.random() > 0.998 ? 1 : 0);
 
@@ -82,7 +95,6 @@ const PerformanceReport = () => {
                             greenCount: newGreen,
                             submitAndCall: newSubmitCall,
                             greenSentCount: newGreenSent,
-                            // Store full precision
                             hours: newHours,
                             breakHours: newBreak,
                             awayHours: newAway,
@@ -92,10 +104,10 @@ const PerformanceReport = () => {
                     return row;
                 });
             });
-        }, 1000); // Live updates every 1 second (Realistic Time)
+        }, 1000);
 
         return () => clearInterval(interval);
-    }, [todayStr]);
+    }, []);
 
 
 
@@ -103,18 +115,72 @@ const PerformanceReport = () => {
         setFilters(prev => ({ ...prev, [key]: value }));
     };
 
+    // --- Mock Call Data Generator ---
+    const generateMockCalls = (count) => {
+        const calls = [];
+        let startTime = new Date();
+        startTime.setHours(9, 0, 0, 0); // Start at 9 AM
+
+        for (let i = 1; i <= count; i++) {
+            // Random duration between 1 and 10 minutes
+            const durationMinutes = Math.floor(Math.random() * 9) + 1;
+            const durationSeconds = Math.floor(Math.random() * 60);
+
+            const endTime = new Date(startTime.getTime() + durationMinutes * 60000 + durationSeconds * 1000);
+
+            calls.push({
+                sno: i,
+                startTime: startTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true }),
+                endTime: endTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })
+            });
+
+            // Next call starts 2-20 mins later
+            startTime = new Date(endTime.getTime() + (Math.floor(Math.random() * 18) + 2) * 60000);
+        }
+        return calls;
+    };
+
+    const [selectedCallsEmployee, setSelectedCallsEmployee] = useState(null);
+    const [callLogs, setCallLogs] = useState([]);
+
+    const handleCallClick = (employee) => {
+        if (!employee.submitAndCall || employee.submitAndCall === 0) return;
+        const logs = generateMockCalls(employee.submitAndCall);
+        setCallLogs(logs);
+        setSelectedCallsEmployee(employee);
+    };
+
+    const closeCallModal = () => {
+        setSelectedCallsEmployee(null);
+        setCallLogs([]);
+    };
+
     // --- Filtering & Aggregation Logic ---
     const filteredData = useMemo(() => {
+        // If no date range selected, return empty or default
+        if (!dateRange?.from) return [];
+
+        const fromDate = startOfDay(dateRange.from);
+        const toDate = dateRange.to ? endOfDay(dateRange.to) : endOfDay(dateRange.from);
+
         return EMPLOYEES.map((name, index) => {
-            // Find all records for this employee that match selected dates
-            const employeeRecords = allData.filter(row => row.date === todayStr && row.name === name);
+            // Find all records for this employee within date range
+            const employeeRecords = allData.filter(row => {
+                const rowDate = parseISO(row.date);
+                return row.name === name && isWithinInterval(rowDate, { start: fromDate, end: toDate });
+            });
 
             // Apply name filter
             if (filters.name && !name.toLowerCase().includes(filters.name.toLowerCase())) return null;
 
             if (employeeRecords.length === 0) {
+                // If filtering by name and no records, we might still want to show the row if the name matches? 
+                // But usually if no data in range, show zeros.
+                if (filters.name && !name.toLowerCase().includes(filters.name.toLowerCase())) return null;
+
                 return {
                     id: index,
+                    empId: `EMP-${1000 + index}`,
                     name,
                     hours: 0,
                     rxDecoded: 0,
@@ -122,11 +188,14 @@ const PerformanceReport = () => {
                     greenCount: 0,
                     breakHours: 0,
                     awayHours: 0,
-                    breakCount: 0
+                    breakCount: 0,
+                    submitAndCall: 0,
+                    greenSentCount: 0,
+                    avgRxDecoded: 0
                 };
             }
 
-            // Aggregate data (though for Today there's only 1 record, reduce keeps it safe)
+            // Aggregate data
             const totalHours = employeeRecords.reduce((sum, row) => sum + row.hours, 0);
             const totalRx = employeeRecords.reduce((sum, row) => sum + row.rxDecoded, 0);
             const totalProducts = employeeRecords.reduce((sum, row) => sum + row.productsDecoded, 0);
@@ -138,16 +207,15 @@ const PerformanceReport = () => {
             const totalBreakCount = employeeRecords.reduce((sum, row) => sum + (row.breakCount || 0), 0);
 
             // Calculate Average Prescriptions Decoded per Hour
-            // Avoid division by zero
             const avgRxDecoded = totalHours > 0 ? (totalRx / totalHours) : 0;
 
             return {
                 id: index,
-                empId: `EMP-${1000 + index}`, // New Field
+                empId: `EMP-${1000 + index}`,
                 name,
-                hours: totalHours, // Keep precision
+                hours: totalHours,
                 rxDecoded: totalRx,
-                avgRxDecoded, // New Field
+                avgRxDecoded,
                 productsDecoded: totalProducts,
                 greenCount: totalGreen,
                 submitAndCall: totalSubmitCall,
@@ -156,8 +224,8 @@ const PerformanceReport = () => {
                 awayHours: totalAway,
                 breakCount: totalBreakCount
             };
-        }).filter(Boolean); // Remove nulls from name filter
-    }, [allData, filters]); // Remove selectedDates dependency
+        }).filter(Boolean);
+    }, [allData, filters, dateRange]);
 
     // --- Pagination Logic ---
     const [currentPage, setCurrentPage] = useState(1);
@@ -183,7 +251,7 @@ const PerformanceReport = () => {
             "Rx Decoded": row.rxDecoded,
             "Avg Rx Decoded": row.avgRxDecoded.toFixed(2), // New Export Column
             "Products": row.productsDecoded,
-            "Green Channel": row.greenCount,
+            "Green Decoded": row.greenCount,
             "Green Sent": row.greenSentCount || 0,
             "Calls (Submit & Call)": row.submitAndCall,
             "break hours": row.breakHours,
@@ -216,17 +284,80 @@ const PerformanceReport = () => {
                                 <Calendar className="text-indigo-600" size={24} />
                                 Performance Report
                             </h1>
-                            <p className="text-xs text-slate-500">Daily performance metrics for 2025</p>
+                            <p className="text-xs text-slate-500">
+                                {dateRange?.from ? (
+                                    <>
+                                        {format(dateRange.from, 'MMM dd, yyyy')}
+                                        {dateRange.to && dateRange.to.getTime() !== dateRange.from.getTime() && ` - ${format(dateRange.to, 'MMM dd, yyyy')}`}
+                                    </>
+                                ) : 'Select Date Range'}
+                            </p>
                         </div>
                     </div>
 
                     {/* Filters */}
                     <div className="flex items-center gap-3">
-                        {/* Custom Calendar Filter */}
-                        {/* Date Display (Static) */}
-                        <div className="flex items-center gap-2 px-4 py-2 bg-indigo-50 border border-indigo-100 rounded-lg text-sm font-bold text-indigo-700">
-                            <Calendar size={16} className="text-indigo-600" />
-                            {today.toLocaleDateString('en-US', { weekday: 'short', month: 'long', day: 'numeric', year: 'numeric' })}
+                        {/* Date Calendar Filter */}
+                        <div className="relative">
+                            <button
+                                onClick={() => setIsCalendarOpen(!isCalendarOpen)}
+                                className="flex items-center gap-2 px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm text-slate-700 hover:bg-slate-50 shadow-sm transition-all"
+                            >
+                                <Calendar size={16} className="text-slate-500" />
+                                <span>
+                                    {dateRange?.from ? (
+                                        <>
+                                            {format(dateRange.from, 'MMM dd')}
+                                            {dateRange.to && dateRange.to.getTime() !== dateRange.from.getTime() ? ` - ${format(dateRange.to, 'MMM dd')}` : ''}
+                                        </>
+                                    ) : 'Select Dates'}
+                                </span>
+                                <ChevronDown size={14} className="text-slate-400" />
+                            </button>
+
+                            {isCalendarOpen && (
+                                <div className="absolute right-0 top-full mt-2 z-50 bg-white rounded-xl shadow-xl border border-slate-100 p-2 animate-in fade-in zoom-in-95 duration-100">
+                                    <div className="flex justify-end p-2 border-b border-slate-100 mb-2">
+                                        <button onClick={() => setIsCalendarOpen(false)} className="text-slate-400 hover:text-slate-600"><X size={16} /></button>
+                                    </div>
+                                    <DayPicker
+                                        mode="range"
+                                        selected={dateRange}
+                                        onSelect={(range) => {
+                                            if (range?.from) {
+                                                setDateRange(range);
+                                            }
+                                        }}
+                                        disabled={{ after: new Date() }}
+                                        pagedNavigation
+                                        showOutsideDays
+                                        classNames={{
+                                            months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
+                                            month: "space-y-3",
+                                            caption: "flex justify-between pt-1 relative items-center px-2",
+                                            caption_label: "text-xs font-bold text-slate-700",
+                                            nav: "flex items-center space-x-1",
+                                            nav_button: "h-6 w-6 bg-transparent hover:bg-slate-100 p-0 rounded-md transition-colors flex items-center justify-center text-slate-500 hover:text-indigo-600",
+                                            nav_button_previous: "absolute left-0",
+                                            nav_button_next: "absolute right-0",
+                                            table: "w-full border-collapse space-y-1",
+                                            head_row: "flex",
+                                            head_cell: "text-slate-400 rounded-md w-7 font-normal text-[0.65rem] uppercase",
+                                            row: "flex w-full mt-1",
+                                            cell: "text-slate-600 rounded-md h-7 w-7 text-[0.7rem] relative [&:has([aria-selected])]:bg-indigo-50 first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20 p-0",
+                                            day: "h-7 w-7 p-0 font-medium aria-selected:opacity-100 hover:bg-indigo-50 focus:bg-indigo-50 rounded-md transition-all",
+                                            day_selected: "bg-indigo-600 text-white hover:bg-indigo-600 hover:text-white focus:bg-indigo-600 focus:text-white rounded-md",
+                                            day_today: "bg-slate-100 text-slate-900 font-bold",
+                                            day_outside: "text-slate-300 opacity-50",
+                                            day_disabled: "text-slate-300 opacity-30",
+                                            day_range_middle: "!bg-indigo-50 !text-indigo-600 !rounded-none",
+                                            day_range_start: "!bg-indigo-600 !text-white !rounded-l-md !rounded-r-none",
+                                            day_range_end: "!bg-indigo-600 !text-white !rounded-r-md !rounded-l-none",
+                                            day_hidden: "invisible",
+                                        }}
+                                    />
+                                </div>
+                            )}
                         </div>
 
                         <div className="h-8 w-px bg-slate-300 mx-2" />
@@ -285,7 +416,7 @@ const PerformanceReport = () => {
                                         <span>Products</span>
                                     </th>
                                     <th className="px-6 py-4">
-                                        <span className="text-emerald-700">Green Channel</span>
+                                        <span className="text-emerald-700">Green Decoded</span>
                                     </th>
                                     <th className="px-6 py-4">
                                         <span className="text-emerald-700">Green Sent</span>
@@ -333,9 +464,16 @@ const PerformanceReport = () => {
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4">
-                                                <span className="text-slate-700 font-medium">
-                                                    {row.submitAndCall || 0}
-                                                </span>
+                                                {row.submitAndCall > 0 ? (
+                                                    <button
+                                                        onClick={() => handleCallClick(row)}
+                                                        className="text-indigo-600 font-bold hover:text-indigo-800 hover:underline focus:outline-none"
+                                                    >
+                                                        {row.submitAndCall}
+                                                    </button>
+                                                ) : (
+                                                    <span className="text-slate-400 font-medium">0</span>
+                                                )}
                                             </td>
                                         </tr>
                                     ))
@@ -388,7 +526,64 @@ const PerformanceReport = () => {
                         </div>
                     </div>
                 </div>
-            </main >
+            </main>
+
+            {/* Calls Detail Modal */}
+            {
+                selectedCallsEmployee && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
+                        <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+                            {/* Modal Header */}
+                            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50">
+                                <div>
+                                    <h2 className="text-lg font-bold text-slate-800">Call Logs</h2>
+                                    <p className="text-sm text-slate-500">
+                                        {selectedCallsEmployee.name} <span className="font-mono text-xs bg-slate-200 px-2 py-0.5 rounded text-slate-600 ml-2">{selectedCallsEmployee.empId}</span>
+                                    </p>
+                                </div>
+                                <button
+                                    onClick={closeCallModal}
+                                    className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
+                                >
+                                    <X size={20} />
+                                </button>
+                            </div>
+
+                            {/* Modal Body */}
+                            <div className="p-0 max-h-[60vh] overflow-y-auto">
+                                <table className="w-full text-sm text-left">
+                                    <thead className="text-xs text-slate-500 uppercase bg-slate-50 border-b border-slate-100 sticky top-0 z-10">
+                                        <tr>
+                                            <th className="px-6 py-3 font-semibold">S.No</th>
+                                            <th className="px-6 py-3 font-semibold">Start Time</th>
+                                            <th className="px-6 py-3 font-semibold">End Time</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100">
+                                        {callLogs.map((log) => (
+                                            <tr key={log.sno} className="hover:bg-slate-50">
+                                                <td className="px-6 py-3 font-medium text-slate-600">{log.sno}</td>
+                                                <td className="px-6 py-3 text-slate-700 font-mono">{log.startTime}</td>
+                                                <td className="px-6 py-3 text-slate-700 font-mono">{log.endTime}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            {/* Modal Footer */}
+                            <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end">
+                                <button
+                                    onClick={closeCallModal}
+                                    className="px-4 py-2 bg-white border border-slate-300 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                                >
+                                    Close
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )
+            }
         </div >
     );
 };

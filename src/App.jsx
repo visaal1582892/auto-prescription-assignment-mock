@@ -9,6 +9,8 @@ import StoreView from './pages/StoreView';
 import PerformanceReport from './pages/PerformanceReport';
 import PrescriptionReport from './pages/PrescriptionReport';
 import LocationReport from './pages/LocationReport';
+import PrescriptionSaleReport from './pages/PrescriptionSaleReport';
+import DecoderEfficiencyReport from './pages/DecoderEfficiencyReport';
 
 import StoreOrderSearch from './pages/StoreOrderSearch';
 import VerificationWorkflow from './pages/VerificationWorkflow';
@@ -85,6 +87,22 @@ const App = () => {
           element={
             <ProtectedRoute>
               <LocationReport />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/prescription-sale-report"
+          element={
+            <ProtectedRoute>
+              <PrescriptionSaleReport />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/decoder-efficiency-report"
+          element={
+            <ProtectedRoute>
+              <DecoderEfficiencyReport />
             </ProtectedRoute>
           }
         />
