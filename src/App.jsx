@@ -11,6 +11,8 @@ import PrescriptionReport from './pages/PrescriptionReport';
 import LocationReport from './pages/LocationReport';
 import PrescriptionSaleReport from './pages/PrescriptionSaleReport';
 import DecoderEfficiencyReport from './pages/DecoderEfficiencyReport';
+import PrescriptionVelocityReport from './pages/PrescriptionVelocityReport';
+import VerificationsReport from './pages/VerificationsReport';
 
 import StoreOrderSearch from './pages/StoreOrderSearch';
 import VerificationWorkflow from './pages/VerificationWorkflow';
@@ -103,6 +105,22 @@ const App = () => {
           element={
             <ProtectedRoute>
               <DecoderEfficiencyReport />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/prescription-velocity-report"
+          element={
+            <ProtectedRoute>
+              <PrescriptionVelocityReport />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/verifications-report"
+          element={
+            <ProtectedRoute>
+              <VerificationsReport />
             </ProtectedRoute>
           }
         />

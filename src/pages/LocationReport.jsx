@@ -37,11 +37,9 @@ const LocationReport = () => {
         const data = [];
         const today = new Date();
 
-        // Generate daily data for past 30 days (excluding today maybe, but lets generate up to today and filter later, 
-        // OR just generate up to yesterday as requested implicitly by "only data until yesterday")
-
-        // Actually, let's generate past 30 days ending YESTERDAY
-        for (let d = 1; d <= 30; d++) {
+        // Generate daily data for past 30 days
+        // Generate daily data for past 30 days
+        for (let d = 0; d <= 30; d++) {
             const date = subDays(today, d);
             const dateStr = format(date, 'yyyy-MM-dd');
 
@@ -50,13 +48,17 @@ const LocationReport = () => {
                     const numSuffix = (10000 + i).toString().substring(1);
                     const storeId = `IN${loc.code}0${numSuffix}`; // Consistent ID per store across days
 
+                    // Simulate some stores having 0 capture on some days
+                    // 20% chance of 0 capture
+                    const rxCount = Math.random() > 0.8 ? 0 : Math.floor(Math.random() * 300) + 50;
+
                     data.push({
                         id: `${dateStr}-${storeId}`,
                         date: dateStr,
                         storeId: storeId,
                         state: loc.state,
                         city: loc.city,
-                        rxCount: Math.floor(Math.random() * 300) + 50
+                        rxCount: rxCount
                     });
                 }
             });
@@ -64,20 +66,46 @@ const LocationReport = () => {
         return data;
     };
 
-    const [allData] = useState(generateStoreData());
-
-    // Default to Yesterday
+    const [allData, setAllData] = useState(generateStoreData());
     const [dateRange, setDateRange] = useState({
-        from: subDays(new Date(), 1),
-        to: subDays(new Date(), 1)
+        from: new Date(),
+        to: new Date()
     });
     const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
+    // --- Real-time Simulation for Today ---
+    useEffect(() => {
+        const todayStr = format(new Date(), 'yyyy-MM-dd');
+
+        const interval = setInterval(() => {
+            setAllData(prevData => {
+                let hasChanges = false;
+                const newData = prevData.map(row => {
+                    if (row.date === todayStr) {
+                        // Simulate real-time updates for today
+                        // 1. Existing capturing stores getting more Rx
+                        if (row.rxCount > 0 && Math.random() > 0.7) { // 30% chance to increment
+                            hasChanges = true;
+                            return { ...row, rxCount: row.rxCount + Math.floor(Math.random() * 3) + 1 };
+                        }
+
+                        // 2. Non-capturing stores starting to capture (rarely)
+                        if (row.rxCount === 0 && Math.random() > 0.98) { // 2% chance to start capturing
+                            hasChanges = true;
+                            return { ...row, rxCount: 1 };
+                        }
+                    }
+                    return row;
+                });
+                return hasChanges ? newData : prevData;
+            });
+        }, 3000); // Update every 3 seconds to be visible but not too chaotic
+
+        return () => clearInterval(interval);
+    }, []);
+
     // --- Filters State ---
-    const [filters, setFilters] = useState({
-        state: "All",
-        city: "All"
-    });
+    const [filters, setFilters] = useState({ state: "All", city: "All" });
 
     // Helper: Get unique states from actual data
     const uniqueStates = ["All", ...new Set(allData.map(d => d.state))];
@@ -85,14 +113,12 @@ const LocationReport = () => {
 
     // --- Filter Logic ---
     const filteredData = useMemo(() => {
-        // Validation: If no range, return empty 
         if (!dateRange?.from) return [];
 
         const fromDate = startOfDay(dateRange.from);
         const toDate = dateRange.to ? endOfDay(dateRange.to) : endOfDay(fromDate);
 
         return allData.filter(row => {
-            // Date Filter
             const rowDate = parseISO(row.date);
             if (!isWithinInterval(rowDate, { start: fromDate, end: toDate })) return false;
 
@@ -106,26 +132,42 @@ const LocationReport = () => {
     // --- Grouping Logic ---
     const groupedData = useMemo(() => {
         const groups = {};
+
+        // Initialize groups for all LOCATIONS that match filters (even if no data)
+        // This ensures we show "Total Stores" even if 0 capture
+        const targetLocations = LOCATIONS.filter(loc =>
+            (filters.state === "All" || loc.state === filters.state) &&
+            (filters.city === "All" || loc.city === filters.city)
+        );
+
+        targetLocations.forEach(loc => {
+            const key = `${loc.state}-${loc.city}`;
+            groups[key] = {
+                id: key,
+                state: loc.state,
+                city: loc.city,
+                totalConfiguredStores: loc.stores,
+                capturingStoreIds: new Set(),
+                rxCount: 0
+            };
+        });
+
+        // Aggregate data
         filteredData.forEach(row => {
             const key = `${row.state}-${row.city}`;
-            if (!groups[key]) {
-                groups[key] = {
-                    id: key,
-                    state: row.state,
-                    city: row.city,
-                    uniqueStores: new Set(),
-                    rxCount: 0
-                };
+            if (groups[key]) {
+                if (row.rxCount > 0) {
+                    groups[key].capturingStoreIds.add(row.storeId);
+                }
+                groups[key].rxCount += row.rxCount;
             }
-            groups[key].uniqueStores.add(row.storeId);
-            groups[key].rxCount += row.rxCount;
         });
 
         return Object.values(groups).map(group => ({
             ...group,
-            storeCount: group.uniqueStores.size
-        }));
-    }, [filteredData]);
+            activeStoreCount: group.capturingStoreIds.size
+        })).filter(g => g.totalConfiguredStores > 0); // Should always be true based on Logic
+    }, [filteredData, filters]);
 
     // --- Pagination Logic ---
     const [currentPage, setCurrentPage] = useState(1);
@@ -137,7 +179,6 @@ const LocationReport = () => {
         return groupedData.slice(start, start + itemsPerPage);
     }, [groupedData, currentPage]);
 
-    // Reset page on filter change
     useEffect(() => {
         setCurrentPage(1);
     }, [filters]);
@@ -146,7 +187,8 @@ const LocationReport = () => {
         const exportData = groupedData.map(row => ({
             "State": row.state,
             "City": row.city,
-            "Total Stores": row.storeCount,
+            "Total Stores (Actual)": row.totalConfiguredStores,
+            "Stores Captured": row.activeStoreCount,
             "Total Prescriptions": row.rxCount
         }));
 
@@ -157,7 +199,9 @@ const LocationReport = () => {
     };
 
     // Calculate Totals
-    const totalStores = new Set(filteredData.map(d => d.storeId)).size;
+    // Total Capture Stores = Set of unique stores in filteredData with rxCount > 0
+    // Total Configured Stores = Sum of 'stores' in displayed groups
+    const totalCapturingStores = new Set(filteredData.filter(d => d.rxCount > 0).map(d => d.storeId)).size;
     const totalRx = filteredData.reduce((sum, row) => sum + row.rxCount, 0);
 
     return (
@@ -221,7 +265,7 @@ const LocationReport = () => {
                                             }
                                         }}
                                         // Disable today and future dates (start disabling from Today)
-                                        disabled={{ after: subDays(new Date(), 1) }}
+                                        disabled={{ after: new Date() }}
                                         pagedNavigation
                                         showOutsideDays
                                         classNames={{
@@ -279,8 +323,8 @@ const LocationReport = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                     <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
                         <div>
-                            <p className="text-sm font-bold text-slate-500 uppercase">Total Stores</p>
-                            <p className="text-2xl font-bold text-slate-900">{totalStores.toLocaleString()}</p>
+                            <p className="text-sm font-bold text-slate-500 uppercase">Stores Captured</p>
+                            <p className="text-2xl font-bold text-slate-900">{totalCapturingStores.toLocaleString()}</p>
                         </div>
                         <div className="p-3 bg-blue-50 text-blue-600 rounded-lg">
                             <Building size={24} />
@@ -330,7 +374,8 @@ const LocationReport = () => {
                                             </select>
                                         </div>
                                     </th>
-                                    <th className="px-6 py-4 text-right">Total Stores</th>
+                                    <th className="px-6 py-4 text-right">Actual Stores</th>
+                                    <th className="px-6 py-4 text-right" title="Stores that captured at least 1 prescription">Stores Captured</th>
                                     <th className="px-6 py-4 text-right">Total Prescriptions</th>
                                 </tr>
                             </thead>
@@ -340,8 +385,9 @@ const LocationReport = () => {
                                         <tr key={row.id} className="bg-white hover:bg-slate-50 transition-colors">
                                             <td className="px-6 py-4 font-bold text-slate-800">{row.state}</td>
                                             <td className="px-6 py-4 font-medium text-slate-600">{row.city}</td>
-                                            <td className="px-6 py-4 text-right font-medium text-slate-600">{row.storeCount}</td>
-                                            <td className="px-6 py-4 text-right font-mono font-bold text-indigo-600">{row.rxCount.toLocaleString()}</td>
+                                            <td className="px-6 py-4 text-right font-medium text-slate-600">{row.totalConfiguredStores}</td>
+                                            <td className="px-6 py-4 text-right font-medium text-indigo-600">{row.activeStoreCount}</td>
+                                            <td className="px-6 py-4 text-right font-mono font-bold text-slate-800">{row.rxCount.toLocaleString()}</td>
                                         </tr>
                                     ))
                                 ) : (

@@ -40,32 +40,30 @@ const DecoderEfficiencyReport = () => {
 
             NAMES.forEach((name, idx) => {
                 // Determine randomized totals for the day matching image scale (100s)
-                const grandTotal = Math.floor(Math.random() * 400) + 150; // 150-550 total per day
+                // Break down into buckets (values matching image ranges)
+                const b0_1 = Math.floor(Math.random() * 200) + 40; // 40-240
+                const b1_2 = Math.floor(Math.random() * 150) + 30; // 30-180
+                const b2_3 = Math.floor(Math.random() * 80) + 20;  // 20-100
+                const b3_4 = Math.floor(Math.random() * 50) + 10;  // 10-60
+                const b4_5 = Math.floor(Math.random() * 30) + 5;   // 5-35
+                const b5_6 = Math.floor(Math.random() * 20);       // 0-20
+                const b6_7 = Math.floor(Math.random() * 15);       // 0-15
+                const b7_8 = Math.floor(Math.random() * 10);       // 0-10
+                const b8_9 = Math.floor(Math.random() * 8);        // 0-8
+                const b9_10 = Math.floor(Math.random() * 5);       // 0-5
+                const bOver10 = Math.floor(Math.random() * 10);    // 0-10
 
-                // Break down into buckets (values similar to image: 0-25 range)
-                const b5_6 = Math.floor(Math.random() * 20);
-                const b6_7 = Math.floor(Math.random() * 19);
-                const b7_8 = Math.floor(Math.random() * 15);
-                const b8_9 = Math.floor(Math.random() * 10);
-                const b9_10 = Math.floor(Math.random() * 8);
-                const bOver10 = Math.floor(Math.random() * 25); // Can be higher sometimes
-
-                // Ensure total >= sum of buckets (the rest are < 5 mins)
-                const sumBuckets = b5_6 + b6_7 + b7_8 + b8_9 + b9_10 + bOver10;
-                const safeTotal = Math.max(grandTotal, sumBuckets + Math.floor(Math.random() * 50));
+                // Total Sum
+                const grandTotal = b0_1 + b1_2 + b2_3 + b3_4 + b4_5 + b5_6 + b6_7 + b7_8 + b8_9 + b9_10 + bOver10;
 
                 data.push({
                     id: `${dateStr}-${idx}`,
                     date: dateStr,
-                    empId: `EMP${10000 + idx}`,
+                    empId: `EMP-${1000 + idx}`, // Standardized format matching PerformanceReport
                     empName: name,
-                    b5_6,
-                    b6_7,
-                    b7_8,
-                    b8_9,
-                    b9_10,
-                    bOver10,
-                    grandTotal: safeTotal
+                    b0_1, b1_2, b2_3, b3_4, b4_5,
+                    b5_6, b6_7, b7_8, b8_9, b9_10, bOver10,
+                    grandTotal
                 });
             });
         }
@@ -116,11 +114,17 @@ const DecoderEfficiencyReport = () => {
                 empMap[row.empId] = {
                     empId: row.empId,
                     empName: row.empName,
+                    b0_1: 0, b1_2: 0, b2_3: 0, b3_4: 0, b4_5: 0,
                     b5_6: 0, b6_7: 0, b7_8: 0, b8_9: 0, b9_10: 0, bOver10: 0,
                     grandTotal: 0
                 };
             }
             const emp = empMap[row.empId];
+            emp.b0_1 += row.b0_1;
+            emp.b1_2 += row.b1_2;
+            emp.b2_3 += row.b2_3;
+            emp.b3_4 += row.b3_4;
+            emp.b4_5 += row.b4_5;
             emp.b5_6 += row.b5_6;
             emp.b6_7 += row.b6_7;
             emp.b7_8 += row.b7_8;
@@ -132,16 +136,23 @@ const DecoderEfficiencyReport = () => {
 
         // 3. Compute Calculated Columns & Global Total
         let global = {
-            empId: 'Grand Total', empName: '',
+            empId: '', empName: '', // Empty for alignment or specific label
+            b0_1: 0, b1_2: 0, b2_3: 0, b3_4: 0, b4_5: 0,
             b5_6: 0, b6_7: 0, b7_8: 0, b8_9: 0, b9_10: 0, bOver10: 0,
             grandTotal: 0, above5Min: 0
         };
 
         const result = Object.values(empMap).map(emp => {
             const above5Min = emp.b5_6 + emp.b6_7 + emp.b7_8 + emp.b8_9 + emp.b9_10 + emp.bOver10;
+            // Percentage = (Above 5 Min / Grand Total) * 100
             const percentage = emp.grandTotal > 0 ? ((above5Min / emp.grandTotal) * 100).toFixed(2) : "0.00";
 
             // Add to global
+            global.b0_1 += emp.b0_1;
+            global.b1_2 += emp.b1_2;
+            global.b2_3 += emp.b2_3;
+            global.b3_4 += emp.b3_4;
+            global.b4_5 += emp.b4_5;
             global.b5_6 += emp.b5_6;
             global.b6_7 += emp.b6_7;
             global.b7_8 += emp.b7_8;
@@ -181,6 +192,11 @@ const DecoderEfficiencyReport = () => {
         const exportData = exportList.map(row => ({
             "Emp Id": row.empId,
             "Emp Name": row.empName,
+            "0. Within 1 minute": row.b0_1,
+            "1-2 minute": row.b1_2,
+            "2-3 minute": row.b2_3,
+            "3-4 minute": row.b3_4,
+            "4-5 minute": row.b4_5,
             "5-6 minute": row.b5_6,
             "6-7 minute": row.b6_7,
             "7-8 minute": row.b7_8,
@@ -188,8 +204,7 @@ const DecoderEfficiencyReport = () => {
             "9-10 minute": row.b9_10,
             "Over 10 minutes": row.bOver10,
             "Grand Total": row.grandTotal,
-            "Above 5 Minute Decoded": row.above5Min,
-            "Percentage": `${row.percentage}%`
+            "Above 5Min Percentage": `${row.percentage}%`
         }));
 
         const ws = utils.json_to_sheet(exportData);
@@ -342,31 +357,39 @@ const DecoderEfficiencyReport = () => {
                                             />
                                         </div>
                                     </th>
-                                    <th className="px-3 py-4 text-center">5-6 minute</th>
-                                    <th className="px-3 py-4 text-center">6-7 minute</th>
-                                    <th className="px-3 py-4 text-center">7-8 minute</th>
-                                    <th className="px-3 py-4 text-center">8-9 minute</th>
-                                    <th className="px-3 py-4 text-center">9-10 minute</th>
-                                    <th className="px-3 py-4 text-center">Over 10 minutes</th>
-                                    <th className="px-3 py-4 text-center bg-slate-100 text-slate-900">Grand Total</th>
-                                    <th className="px-3 py-4 text-center">Above 5 Minute<br />Decoded</th>
-                                    <th className="px-3 py-4 text-center">Percentage</th>
+                                    <th className="px-3 py-4 text-center">0. Within 1<br />minute</th>
+                                    <th className="px-3 py-4 text-center">1-2<br />minute</th>
+                                    <th className="px-3 py-4 text-center">2-3<br />minute</th>
+                                    <th className="px-3 py-4 text-center">3-4<br />minute</th>
+                                    <th className="px-3 py-4 text-center">4-5<br />minute</th>
+                                    <th className="px-3 py-4 text-center">5-6<br />minute</th>
+                                    <th className="px-3 py-4 text-center">6-7<br />minute</th>
+                                    <th className="px-3 py-4 text-center">7-8<br />minute</th>
+                                    <th className="px-3 py-4 text-center">8-9<br />minute</th>
+                                    <th className="px-3 py-4 text-center">9-10<br />minute</th>
+                                    <th className="px-3 py-4 text-center">Over 10<br />minutes</th>
+                                    <th className="px-3 py-4 text-center bg-slate-100 text-slate-900 border-l border-r border-slate-200">Grand<br />Total</th>
+                                    <th className="px-3 py-4 text-center">Above 5Min<br />Percentage</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
                                 {/* Pinned Grand Total Row */}
                                 {globalTotal && (
-                                    <tr className="bg-indigo-50 font-bold border-b-2 border-indigo-100 text-indigo-900">
-                                        <td className="px-4 py-3" colSpan="2">Grand Total</td>
-                                        <td className="px-3 py-3 text-center">{globalTotal.b5_6}</td>
-                                        <td className="px-3 py-3 text-center">{globalTotal.b6_7}</td>
-                                        <td className="px-3 py-3 text-center">{globalTotal.b7_8}</td>
-                                        <td className="px-3 py-3 text-center">{globalTotal.b8_9}</td>
-                                        <td className="px-3 py-3 text-center">{globalTotal.b9_10}</td>
-                                        <td className="px-3 py-3 text-center">{globalTotal.bOver10}</td>
-                                        <td className="px-3 py-3 text-center bg-indigo-100">{globalTotal.grandTotal}</td>
-                                        <td className="px-3 py-3 text-center">{globalTotal.above5Min}</td>
-                                        <td className="px-3 py-3 text-center">{globalTotal.percentage}%</td>
+                                    <tr className="bg-white font-bold border-b-2 border-indigo-100 text-indigo-900 shadow-sm sticky top-0 z-20">
+                                        <td className="px-4 py-3 bg-indigo-50" colSpan="2"></td>
+                                        <td className="px-3 py-3 text-center bg-indigo-50">{globalTotal.b0_1}</td>
+                                        <td className="px-3 py-3 text-center bg-indigo-50">{globalTotal.b1_2}</td>
+                                        <td className="px-3 py-3 text-center bg-indigo-50">{globalTotal.b2_3}</td>
+                                        <td className="px-3 py-3 text-center bg-indigo-50">{globalTotal.b3_4}</td>
+                                        <td className="px-3 py-3 text-center bg-indigo-50">{globalTotal.b4_5}</td>
+                                        <td className="px-3 py-3 text-center bg-indigo-50">{globalTotal.b5_6}</td>
+                                        <td className="px-3 py-3 text-center bg-indigo-50">{globalTotal.b6_7}</td>
+                                        <td className="px-3 py-3 text-center bg-indigo-50">{globalTotal.b7_8}</td>
+                                        <td className="px-3 py-3 text-center bg-indigo-50">{globalTotal.b8_9}</td>
+                                        <td className="px-3 py-3 text-center bg-indigo-50">{globalTotal.b9_10}</td>
+                                        <td className="px-3 py-3 text-center bg-indigo-50">{globalTotal.bOver10}</td>
+                                        <td className="px-3 py-3 text-center bg-indigo-100 border-l border-r border-indigo-200">{globalTotal.grandTotal}</td>
+                                        <td className="px-3 py-3 text-center bg-indigo-50">{globalTotal.percentage}%</td>
                                     </tr>
                                 )}
 
@@ -374,17 +397,21 @@ const DecoderEfficiencyReport = () => {
                                 {paginatedData.length > 0 ? (
                                     paginatedData.map((row) => (
                                         <tr key={row.empId} className="hover:bg-slate-50 transition-colors">
-                                            <td className="px-4 py-3 font-medium">{row.empId}</td>
-                                            <td className="px-4 py-3 font-medium text-slate-800">{row.empName}</td>
-                                            <td className="px-3 py-3 text-center text-slate-500">{row.b5_6}</td>
-                                            <td className="px-3 py-3 text-center text-slate-500">{row.b6_7}</td>
-                                            <td className="px-3 py-3 text-center text-slate-500">{row.b7_8}</td>
-                                            <td className="px-3 py-3 text-center text-slate-500">{row.b8_9}</td>
-                                            <td className="px-3 py-3 text-center text-slate-500">{row.b9_10}</td>
-                                            <td className="px-3 py-3 text-center text-slate-500">{row.bOver10}</td>
-                                            <td className="px-3 py-3 text-center font-bold bg-slate-50 text-slate-900">{row.grandTotal}</td>
-                                            <td className="px-3 py-3 text-center font-medium text-indigo-600">{row.above5Min}</td>
-                                            <td className="px-3 py-3 text-center">{row.percentage}%</td>
+                                            <td className="px-4 py-2 font-medium bg-white border-r border-slate-100 text-slate-800">{row.empId}</td>
+                                            <td className="px-4 py-2 font-medium text-slate-800 bg-white border-r border-slate-100 sticky left-0">{row.empName}</td>
+                                            <td className="px-3 py-2 text-center text-slate-600 border-r border-slate-50">{row.b0_1}</td>
+                                            <td className="px-3 py-2 text-center text-slate-600 border-r border-slate-50">{row.b1_2}</td>
+                                            <td className="px-3 py-2 text-center text-slate-600 border-r border-slate-50">{row.b2_3}</td>
+                                            <td className="px-3 py-2 text-center text-slate-600 border-r border-slate-50">{row.b3_4}</td>
+                                            <td className="px-3 py-2 text-center text-slate-600 border-r border-slate-50">{row.b4_5}</td>
+                                            <td className="px-3 py-2 text-center text-slate-600 border-r border-slate-50">{row.b5_6}</td>
+                                            <td className="px-3 py-2 text-center text-slate-600 border-r border-slate-50">{row.b6_7}</td>
+                                            <td className="px-3 py-2 text-center text-slate-600 border-r border-slate-50">{row.b7_8}</td>
+                                            <td className="px-3 py-2 text-center text-slate-600 border-r border-slate-50">{row.b8_9}</td>
+                                            <td className="px-3 py-2 text-center text-slate-600 border-r border-slate-50">{row.b9_10}</td>
+                                            <td className="px-3 py-2 text-center text-slate-600 border-r border-slate-50">{row.bOver10}</td>
+                                            <td className="px-3 py-2 text-center font-bold bg-slate-50 text-slate-900 border-l border-r border-slate-200">{row.grandTotal}</td>
+                                            <td className="px-3 py-2 text-center font-medium bg-white">{row.percentage}%</td>
                                         </tr>
                                     ))
                                 ) : (

@@ -34,28 +34,34 @@ const SupervisorDashboard = () => {
 
     // State for live metrics - Split by Location x Channel
     // 4 buckets: inHouseGreen, inHouseNormal, wfhGreen, wfhNormal
-    const [stats, setStats] = useState({
-        inHouseGreen: { total: 30, loggedIn: 25, working: 22, onBreak: 3 },
-        inHouseNormal: { total: 54, loggedIn: 35, working: 30, onBreak: 5 },
-        wfhGreen: { total: 15, loggedIn: 12, working: 10, onBreak: 2 },
-        wfhNormal: { total: 25, loggedIn: 17, working: 14, onBreak: 3 },
-        // Shared/Global Metrics
-        prescriptionsReceived: 1450,
-        pending: 42,
-        avgDecodeTime: "1m 45s",
-        greenChannelCount: 142,
-        returnedCount: 12,
-        // Efficiency Metrics
-        lessThan1Min: 450,
-        oneToThreeMin: 600,
-        threeToFiveMin: 150,
-        exceeded5Min: 35,
-        exceeded7Min: 18,
-        exceeded10Min: 13,
-        // Pending Breakdown
-        pendingGreen: 8,
-        pendingRed: 5,
-        pendingNormal: 29
+    const [stats, setStats] = useState(() => {
+        // Initialize with realistic distribution matching Prescription Velocity Report
+        // Distribution: <1(20%), 1-3(33%), 3-5(22%), 5-7(13%), 7-10(7%), >10(5%)
+        const total = Math.floor(Math.random() * 1000) + 1000;
+
+        return {
+            inHouseGreen: { total: 30, loggedIn: 25, working: 22, onBreak: 3 },
+            inHouseNormal: { total: 54, loggedIn: 35, working: 30, onBreak: 5 },
+            wfhGreen: { total: 15, loggedIn: 12, working: 10, onBreak: 2 },
+            wfhNormal: { total: 25, loggedIn: 17, working: 14, onBreak: 3 },
+            // Shared/Global Metrics
+            prescriptionsReceived: total,
+            pending: 42,
+            avgDecodeTime: "1m 45s",
+            greenChannelCount: Math.floor(total * 0.12),
+            returnedCount: Math.floor(total * 0.01),
+            // Efficiency Metrics - Matched with Velocity Report Distribution
+            lessThan1Min: Math.floor(total * 0.20),
+            oneToThreeMin: Math.floor(total * 0.33),
+            threeToFiveMin: Math.floor(total * 0.22),
+            exceeded5Min: Math.floor(total * 0.13),
+            exceeded7Min: Math.floor(total * 0.07),
+            exceeded10Min: Math.floor(total * 0.05),
+            // Pending Breakdown
+            pendingGreen: 8,
+            pendingRed: 5,
+            pendingNormal: 29
+        };
     });
 
 
@@ -152,6 +158,20 @@ const SupervisorDashboard = () => {
                 const newPendingGreen = Math.floor(newPending * 0.3); // Complex
                 const newPendingNormal = newPending - newPendingRed - newPendingGreen; // >5min
 
+                // Weighted Velocity Updates based on Report Distribution
+                const r = Math.random();
+                let velocityUpdate = {};
+
+                // 70% chance to process a prescription this tick
+                if (Math.random() > 0.3) {
+                    if (r < 0.20) velocityUpdate = { lessThan1Min: prev.lessThan1Min + 1 };
+                    else if (r < 0.53) velocityUpdate = { oneToThreeMin: prev.oneToThreeMin + 1 };
+                    else if (r < 0.75) velocityUpdate = { threeToFiveMin: prev.threeToFiveMin + 1 };
+                    else if (r < 0.88) velocityUpdate = { exceeded5Min: prev.exceeded5Min + 1 };
+                    else if (r < 0.95) velocityUpdate = { exceeded7Min: prev.exceeded7Min + 1 };
+                    else velocityUpdate = { exceeded10Min: prev.exceeded10Min + 1 };
+                }
+
                 return {
                     ...prev,
                     inHouseGreen: updateBucket(prev.inHouseGreen),
@@ -159,20 +179,15 @@ const SupervisorDashboard = () => {
                     wfhGreen: updateBucket(prev.wfhGreen),
                     wfhNormal: updateBucket(prev.wfhNormal),
 
-                    prescriptionsReceived: prev.prescriptionsReceived + Math.floor(Math.random() * 3),
+                    prescriptionsReceived: prev.prescriptionsReceived + (velocityUpdate.lessThan1Min || velocityUpdate.oneToThreeMin || velocityUpdate.threeToFiveMin || velocityUpdate.exceeded5Min || velocityUpdate.exceeded7Min || velocityUpdate.exceeded10Min ? 1 : 0),
                     pending: newPending,
                     // Simulate breakdown of pending
                     pendingGreen: newPendingGreen,
                     pendingRed: newPendingRed,
                     pendingNormal: newPendingNormal,
 
-                    greenChannelCount: prev.greenChannelCount + (Math.random() > 0.7 ? 1 : 0),
-                    lessThan1Min: prev.lessThan1Min + (Math.random() > 0.4 ? 1 : 0),
-                    oneToThreeMin: prev.oneToThreeMin + (Math.random() <= 0.4 ? 1 : 0),
-                    threeToFiveMin: prev.threeToFiveMin + (Math.random() > 0.8 ? 1 : 0),
-                    exceeded5Min: prev.exceeded5Min + (Math.random() > 0.9 ? 1 : 0),
-                    exceeded7Min: prev.exceeded7Min + (Math.random() > 0.95 ? 1 : 0),
-                    exceeded10Min: prev.exceeded10Min + (Math.random() > 0.98 ? 1 : 0)
+                    greenChannelCount: prev.greenChannelCount + (Math.random() > 0.8 ? 1 : 0),
+                    ...velocityUpdate
                 };
             });
         }, 3000);
@@ -443,11 +458,25 @@ const SupervisorDashboard = () => {
                                     Prescription Sale Report
                                 </button>
                                 <button
+                                    onClick={() => navigate('/verifications-report')}
+                                    className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-indigo-600 flex items-center gap-2"
+                                >
+                                    <CheckCircle size={16} />
+                                    Verifications Report
+                                </button>
+                                <button
                                     onClick={() => navigate('/decoder-efficiency-report')}
                                     className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-indigo-600 flex items-center gap-2"
                                 >
                                     <Clock size={16} />
                                     Decoder Efficiency Report
+                                </button>
+                                <button
+                                    onClick={() => navigate('/prescription-velocity-report')}
+                                    className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-indigo-600 flex items-center gap-2"
+                                >
+                                    <TrendingUp size={16} />
+                                    Prescription Velocity Report
                                 </button>
                                 <div className="border-t border-slate-100 my-1"></div>
                                 <button

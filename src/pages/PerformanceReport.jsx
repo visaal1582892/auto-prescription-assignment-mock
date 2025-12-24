@@ -21,7 +21,6 @@ const PerformanceReport = () => {
 
     const EMPLOYEES = ["Alice Cooper", "Bob Martin", "Charlie Day", "Diana Prince", "Evan Wright", "Frank Castle", "Grace Ho", "Henry Wu"];
 
-    // --- Mock Data Generation (Daily for 2025) ---
     // --- Mock Data Generation (Daily for past 30 days) ---
     const generateData = () => {
         const data = [];
@@ -36,19 +35,24 @@ const PerformanceReport = () => {
                 // Randomly skip some employees on some days (simulating weekends/leave)
                 if (i > 0 && Math.random() > 0.8) return;
 
+                const hours = Math.floor(Math.random() * 5) + 3; // 3 to 7 hours
+                const rxDecoded = Math.floor(Math.random() * 300) + 100; // 100-400
+
                 data.push({
                     id: `${dateStr}-${idx}`, // Unique ID based on date and employee
                     name,
                     date: dateStr,
-                    hours: Math.floor(Math.random() * 6) + 2,
-                    rxDecoded: Math.floor(Math.random() * 50) + 10,
-                    productsDecoded: Math.floor(Math.random() * 100) + 20,
-                    greenCount: Math.floor(Math.random() * 10),
-                    breakHours: parseFloat((Math.random() * 1).toFixed(2)),
-                    awayHours: i === 0 ? 0 : parseFloat((Math.random() * 0.5).toFixed(2)), // Some away hours in past
-                    breakCount: Math.floor(Math.random() * 3),
+                    hours: hours,
+                    rxDecoded: rxDecoded,
+                    verifiedCount: Math.floor(Math.random() * 70) + 30, // 30-100
+                    accuracy: Math.floor(Math.random() * 15) + 85, // 85-99%
+                    productsDecoded: Math.floor(Math.random() * 300) + 100, // 100-400
+                    greenCount: Math.floor(Math.random() * 15), // 0-15
+                    greenSentCount: Math.floor(Math.random() * 10), // 0-10
+                    breakCount: Math.floor(Math.random() * 3), // 0-2
+                    breakMinutes: Math.floor(Math.random() * 10) + 2, // 2-12 mins
+                    awayHours: i === 0 ? 0 : (Math.random() > 0.9 ? 1 : 0), // Mostly 0
                     submitAndCall: Math.floor(Math.random() * 10),
-                    greenSentCount: Math.floor(Math.random() * 8)
                 });
             });
         }
@@ -64,7 +68,7 @@ const PerformanceReport = () => {
         to: new Date()
     });
     const [isCalendarOpen, setIsCalendarOpen] = useState(false);
-    const [filters, setFilters] = useState({ name: "" });
+    const [filters, setFilters] = useState({ name: "", empId: "" });
 
     // --- Real-time Simulation for Today ---
     useEffect(() => {
@@ -74,31 +78,40 @@ const PerformanceReport = () => {
             setAllData(prevData => {
                 return prevData.map(row => {
                     if (row.date === todayStr) {
-                        // Simulate work happening
+                        // Simulate work happening (1 second increment)
                         const newHours = row.hours + (1 / 3600);
 
-                        // Metrics update RARELY
-                        const newRx = row.rxDecoded + (Math.random() > 0.998 ? 1 : 0);
-                        const newProducts = row.productsDecoded + (Math.random() > 0.998 ? 1 : 0);
+                        // Realistic decoding speed: ~40-60 Rx/hour => ~1 Rx every 60-90 seconds
+                        // Probability per second: 1/60 ~= 0.016. So random > 0.984
+                        const activeWork = Math.random() > 0.5; // simple flag to make unrelated updates independent
 
-                        const newBreak = Math.min(row.breakHours + (Math.random() > 0.999 ? 0.01 : 0), 2);
-                        const newAway = Math.min(row.awayHours + (Math.random() > 0.999 ? 0.01 : 0), 1);
-                        const newGreen = row.greenCount + (Math.random() > 0.999 ? 1 : 0);
-                        const newSubmitCall = (row.submitAndCall || 0) + (Math.random() > 0.999 ? 1 : 0);
-                        const newGreenSent = (row.greenSentCount || 0) + (Math.random() > 0.999 ? 1 : 0);
+                        const newRx = row.rxDecoded + (Math.random() > 0.98 ? 1 : 0);
+                        const newProducts = row.productsDecoded + (Math.random() > 0.98 ? 1 : 0);
+                        const newVerified = row.verifiedCount + (Math.random() > 0.99 ? 1 : 0); // Verified is slightly slower/less frequent?
 
-                        const newBreakCount = row.breakCount + (Math.random() > 0.9995 ? 1 : 0);
+                        // Breaks happen rarely. Maybe once every few hours.
+                        // Increment break minutes by 1 if a break is starting/ongoing? 
+                        // For simulation, just randomly add a minute very rarely (~once per 2 hours = 1/7200 sec)
+                        const newBreakMinutes = row.breakMinutes + (Math.random() > 0.9998 ? 1 : 0);
+
+                        const newGreen = row.greenCount + (Math.random() > 0.9995 ? 1 : 0);
+                        const newSubmitCall = (row.submitAndCall || 0) + (Math.random() > 0.9995 ? 1 : 0);
+                        const newGreenSent = (row.greenSentCount || 0) + (Math.random() > 0.9995 ? 1 : 0);
+
+                        const newBreakCount = row.breakCount + (row.breakMinutes !== newBreakMinutes && Math.random() > 0.5 ? 1 : 0); // Roughly correlate break count with minutes
+
                         return {
                             ...row,
                             rxDecoded: newRx,
                             productsDecoded: newProducts,
+                            verifiedCount: newVerified,
                             greenCount: newGreen,
                             submitAndCall: newSubmitCall,
                             greenSentCount: newGreenSent,
                             hours: newHours,
-                            breakHours: newBreak,
-                            awayHours: newAway,
+                            breakMinutes: newBreakMinutes,
                             breakCount: newBreakCount
+                            // awayHours kept constant for simplicity or extremely rare update
                         };
                     }
                     return row;
@@ -170,23 +183,26 @@ const PerformanceReport = () => {
                 return row.name === name && isWithinInterval(rowDate, { start: fromDate, end: toDate });
             });
 
+            const generatedEmpId = `EMP-${1000 + index}`;
+
             // Apply name filter
             if (filters.name && !name.toLowerCase().includes(filters.name.toLowerCase())) return null;
+            if (filters.empId && !generatedEmpId.toLowerCase().includes(filters.empId.toLowerCase())) return null;
 
             if (employeeRecords.length === 0) {
-                // If filtering by name and no records, we might still want to show the row if the name matches? 
-                // But usually if no data in range, show zeros.
                 if (filters.name && !name.toLowerCase().includes(filters.name.toLowerCase())) return null;
 
                 return {
                     id: index,
-                    empId: `EMP-${1000 + index}`,
+                    empId: generatedEmpId,
                     name,
                     hours: 0,
                     rxDecoded: 0,
+                    verifiedCount: 0,
+                    accuracy: 0,
                     productsDecoded: 0,
                     greenCount: 0,
-                    breakHours: 0,
+                    breakMinutes: 0,
                     awayHours: 0,
                     breakCount: 0,
                     submitAndCall: 0,
@@ -198,29 +214,35 @@ const PerformanceReport = () => {
             // Aggregate data
             const totalHours = employeeRecords.reduce((sum, row) => sum + row.hours, 0);
             const totalRx = employeeRecords.reduce((sum, row) => sum + row.rxDecoded, 0);
+            const totalVerified = employeeRecords.reduce((sum, row) => sum + row.verifiedCount, 0);
             const totalProducts = employeeRecords.reduce((sum, row) => sum + row.productsDecoded, 0);
             const totalGreen = employeeRecords.reduce((sum, row) => sum + row.greenCount, 0);
             const totalSubmitCall = employeeRecords.reduce((sum, row) => sum + (row.submitAndCall || 0), 0);
             const totalGreenSent = employeeRecords.reduce((sum, row) => sum + (row.greenSentCount || 0), 0);
-            const totalBreak = employeeRecords.reduce((sum, row) => sum + (row.breakHours || 0), 0);
+            const totalBreakMinutes = employeeRecords.reduce((sum, row) => sum + (row.breakMinutes || 0), 0);
             const totalAway = employeeRecords.reduce((sum, row) => sum + (row.awayHours || 0), 0);
             const totalBreakCount = employeeRecords.reduce((sum, row) => sum + (row.breakCount || 0), 0);
 
+            // Average Accuracy
+            const avgAccuracy = Math.floor(employeeRecords.reduce((sum, row) => sum + row.accuracy, 0) / employeeRecords.length);
+
             // Calculate Average Prescriptions Decoded per Hour
-            const avgRxDecoded = totalHours > 0 ? (totalRx / totalHours) : 0;
+            const avgRxDecoded = totalHours > 0 ? Math.floor(totalRx / totalHours) : 0;
 
             return {
                 id: index,
-                empId: `EMP-${1000 + index}`,
+                empId: generatedEmpId,
                 name,
                 hours: totalHours,
                 rxDecoded: totalRx,
                 avgRxDecoded,
+                verifiedCount: totalVerified,
+                accuracy: avgAccuracy,
                 productsDecoded: totalProducts,
                 greenCount: totalGreen,
                 submitAndCall: totalSubmitCall,
                 greenSentCount: totalGreenSent,
-                breakHours: totalBreak,
+                breakMinutes: totalBreakMinutes,
                 awayHours: totalAway,
                 breakCount: totalBreakCount
             };
@@ -245,18 +267,20 @@ const PerformanceReport = () => {
     // --- Export Logic ---
     const handleExport = () => {
         const exportData = filteredData.map(row => ({
-            "Employee ID": row.empId, // New Export Column
-            "Employee Name": row.name,
-            "Hours Worked": row.hours,
-            "Rx Decoded": row.rxDecoded,
-            "Avg Rx Decoded": row.avgRxDecoded.toFixed(2), // New Export Column
+            "Emp ID": row.empId,
+            "Emp Name": row.name,
+            "Hours Worked": `${Math.floor(row.hours)}hrs`,
+            "RX Decoded Count": row.rxDecoded,
+            "Rx Avg/Hrs": row.avgRxDecoded,
+            "Verified Count": row.verifiedCount,
+            "Accuracy %": `${row.accuracy}%`,
             "Products": row.productsDecoded,
             "Green Decoded": row.greenCount,
-            "Green Sent": row.greenSentCount || 0,
-            "Calls (Submit & Call)": row.submitAndCall,
-            "break hours": row.breakHours,
-            "away hours": row.awayHours,
-            "No. of Breaks": row.breakCount
+            "Green Sent": row.greenSentCount,
+            "No. of Breaks": row.breakCount,
+            "Break Taken Hours": `${row.breakMinutes}Min`,
+            "Hours Away Without Intimation": row.awayHours,
+            "Calls (Submit & Calls)": row.submitAndCall
         }));
 
         const ws = utils.json_to_sheet(exportData);
@@ -379,9 +403,24 @@ const PerformanceReport = () => {
                         <table className="w-full text-sm text-left text-slate-600">
                             <thead className="text-xs text-slate-700 uppercase bg-slate-50 border-b border-slate-200">
                                 <tr>
+                                    <th className="px-6 py-4 min-w-[140px]">
+                                        <div className="flex flex-col gap-2">
+                                            <span>Emp ID</span>
+                                            <div className="relative">
+                                                <Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400" />
+                                                <input
+                                                    type="text"
+                                                    placeholder="Filter..."
+                                                    className="w-full pl-7 pr-2 py-1 text-xs border border-slate-300 rounded focus:outline-none focus:border-indigo-500"
+                                                    value={filters.empId}
+                                                    onChange={(e) => handleColumnFilterChange('empId', e.target.value)}
+                                                />
+                                            </div>
+                                        </div>
+                                    </th>
                                     <th className="px-6 py-4 min-w-[200px]">
                                         <div className="flex flex-col gap-2">
-                                            <span>Employee Name</span>
+                                            <span>Emp Name</span>
                                             <div className="relative">
                                                 <Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400" />
                                                 <input
@@ -394,64 +433,35 @@ const PerformanceReport = () => {
                                             </div>
                                         </div>
                                     </th>
-                                    <th className="px-6 py-4">
-                                        <span>Hours Worked</span>
-                                    </th>
-                                    <th className="px-6 py-4">
-                                        <span>No. of Breaks</span>
-                                    </th>
-                                    <th className="px-6 py-4">
-                                        <span>Hours Break Taken</span>
-                                    </th>
-                                    <th className="px-6 py-4">
-                                        <span>Hours Away Without Intimation</span>
-                                    </th>
-                                    <th className="px-6 py-4">
-                                        <span>Rx Decoded</span>
-                                    </th>
-                                    <th className="px-6 py-4">
-                                        <span>Avg Rx/Hr</span>
-                                    </th>
-                                    <th className="px-6 py-4">
-                                        <span>Products</span>
-                                    </th>
-                                    <th className="px-6 py-4">
-                                        <span className="text-emerald-700">Green Decoded</span>
-                                    </th>
-                                    <th className="px-6 py-4">
-                                        <span className="text-emerald-700">Green Sent</span>
-                                    </th>
-                                    <th className="px-6 py-4">
-                                        <span>Calls (Submit & Call)</span>
-                                    </th>
+                                    <th className="px-6 py-4">Hours Worked</th>
+                                    <th className="px-6 py-4">RX Decoded Count</th>
+                                    <th className="px-6 py-4">Rx Avg/Hrs</th>
+                                    <th className="px-6 py-4">Verified Count</th>
+                                    <th className="px-6 py-4">Accuracy %</th>
+                                    <th className="px-6 py-4">Products</th>
+                                    <th className="px-6 py-4 text-emerald-700">Green Decoded</th>
+                                    <th className="px-6 py-4 text-emerald-700">Green Sent</th>
+                                    <th className="px-6 py-4">No. of Breaks</th>
+                                    <th className="px-6 py-4">Break Taken Hours</th>
+                                    <th className="px-6 py-4">Hours Away Without Intimation</th>
+                                    <th className="px-6 py-4">Calls (Submit & Calls)</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
                                 {paginatedData.length > 0 ? (
                                     paginatedData.map((row) => (
                                         <tr key={row.id} className="bg-white hover:bg-slate-50 transition-colors">
-                                            <td className="px-6 py-4">
-                                                <div className="flex flex-col">
-                                                    <span className="font-medium text-slate-900">{row.name}</span>
-                                                    <span className="text-xs text-slate-500">{row.empId}</span>
-                                                </div>
-                                            </td>
+                                            <td className="px-6 py-4 text-xs font-mono text-slate-500">{row.empId}</td>
+                                            <td className="px-6 py-4 font-medium text-slate-900">{row.name}</td>
                                             <td className="px-6 py-4 font-mono font-bold text-indigo-600">
-                                                {/* Format decimal hours to HH:MM:SS */}
-                                                {(() => {
-                                                    const h = Math.floor(row.hours);
-                                                    const m = Math.floor((row.hours - h) * 60);
-                                                    const s = Math.floor(((row.hours - h) * 60 - m) * 60);
-                                                    return `${h}h ${m}m ${s}s`;
-                                                })()}
+                                                {Math.floor(row.hours)}hrs
                                             </td>
-                                            <td className="px-6 py-4">{row.breakCount}</td>
-                                            <td className="px-6 py-4">{row.breakHours.toFixed(2)} hrs</td>
-                                            <td className="px-6 py-4 text-red-600 font-bold">{row.awayHours.toFixed(2)} hrs</td>
                                             <td className="px-6 py-4">{row.rxDecoded}</td>
                                             <td className="px-6 py-4 font-semibold text-slate-700">
-                                                {row.avgRxDecoded.toFixed(2)}
+                                                {row.avgRxDecoded}
                                             </td>
+                                            <td className="px-6 py-4">{row.verifiedCount}</td>
+                                            <td className="px-6 py-4 font-bold text-slate-800">{row.accuracy}%</td>
                                             <td className="px-6 py-4">{row.productsDecoded}</td>
                                             <td className="px-6 py-4">
                                                 <span className="bg-emerald-50 text-emerald-700 px-2 py-1 rounded font-bold text-xs">
@@ -463,6 +473,11 @@ const PerformanceReport = () => {
                                                     {row.greenSentCount || 0}
                                                 </span>
                                             </td>
+                                            <td className="px-6 py-4">{row.breakCount}</td>
+                                            <td className="px-6 py-4">
+                                                {row.breakMinutes > 0 ? `${row.breakMinutes}Min` : ''}
+                                            </td>
+                                            <td className="px-6 py-4 text-red-600 font-bold">{row.awayHours}</td>
                                             <td className="px-6 py-4">
                                                 {row.submitAndCall > 0 ? (
                                                     <button
@@ -479,7 +494,7 @@ const PerformanceReport = () => {
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan="11" className="px-6 py-12 text-center text-slate-400">
+                                        <td colSpan="14" className="px-6 py-12 text-center text-slate-400">
                                             <Filter size={48} className="mx-auto mb-4 opacity-20" />
                                             <p>No records found matching your filters.</p>
                                         </td>
