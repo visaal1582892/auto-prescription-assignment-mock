@@ -13,8 +13,75 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { utils, writeFile } from 'xlsx';
 import { DayPicker } from 'react-day-picker';
-import { format, subDays, isAfter, startOfDay, endOfDay, isWithinInterval, parseISO } from 'date-fns';
+import { format, subDays, isAfter, startOfDay, endOfDay, isWithinInterval, parseISO, differenceInMinutes } from 'date-fns';
 import 'react-day-picker/style.css';
+
+const BREAK_TYPES = {
+    NORMAL: { id: 'NORMAL', label: 'Normal Break', color: 'bg-emerald-50 text-emerald-700 border-emerald-200 icon-emerald-500' },
+    WITHOUT_INTIMATION: { id: 'WITHOUT_INTIMATION', label: 'Without Intimation', color: 'bg-red-50 text-red-700 border-red-200 icon-red-500' },
+    CALL: { id: 'CALL', label: 'Call Break', color: 'bg-blue-50 text-blue-700 border-blue-200 icon-blue-500' },
+    VERIFY: { id: 'VERIFY', label: 'Verify Break', color: 'bg-amber-50 text-amber-700 border-amber-200 icon-amber-500' }
+};
+
+const BreakDetailsModal = ({ isOpen, onClose, title, subtitle, breaks }) => {
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-[2px]">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden transform transition-all animate-in fade-in zoom-in-95 duration-200">
+                <div className="bg-slate-50 px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+                    <div>
+                        <h3 className="text-lg font-bold text-slate-800">{title}</h3>
+                        <p className="text-xs text-slate-500 font-medium font-mono bg-slate-200 px-2 py-0.5 rounded inline-block mt-1">{subtitle}</p>
+                    </div>
+                    <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-full transition-colors text-slate-500">
+                        <X size={18} />
+                    </button>
+                </div>
+                <div className="p-0 max-h-[60vh] overflow-y-auto">
+                    {breaks && breaks.length > 0 ? (
+                        <table className="w-full text-sm text-left text-slate-600">
+                            <thead className="text-xs text-slate-700 uppercase bg-slate-50 border-b border-slate-100 sticky top-0">
+                                <tr>
+                                    <th className="px-6 py-3 font-semibold">S.No</th>
+                                    <th className="px-6 py-3 font-semibold">Break Type</th>
+                                    <th className="px-6 py-3 font-semibold">Start Time</th>
+                                    <th className="px-6 py-3 font-semibold">End Time</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                                {breaks.map((brk, idx) => (
+                                    <tr key={idx} className="hover:bg-slate-50">
+                                        <td className="px-6 py-4 font-medium">{idx + 1}</td>
+                                        <td className="px-6 py-4">
+                                            {BREAK_TYPES[brk.type] ? (
+                                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${BREAK_TYPES[brk.type].color}`}>
+                                                    {BREAK_TYPES[brk.type].label}
+                                                </span>
+                                            ) : brk.type}
+                                        </td>
+                                        <td className="px-6 py-4 font-mono text-xs">{format(parseISO(brk.startTime), 'MMM dd, yyyy HH:mm:ss')}</td>
+                                        <td className="px-6 py-4 font-mono text-xs">{format(parseISO(brk.endTime), 'MMM dd, yyyy HH:mm:ss')}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    ) : (
+                        <div className="p-8 text-center text-slate-400">
+                            <Clock size={48} className="mx-auto mb-3 opacity-20" />
+                            <p>No breaks recorded for this period.</p>
+                        </div>
+                    )}
+                </div>
+                <div className="bg-slate-50 px-6 py-3 border-t border-slate-100 text-right">
+                    <button onClick={onClose} className="px-4 py-2 bg-white border border-slate-300 rounded-lg text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
 
 const PerformanceReport = () => {
     const navigate = useNavigate();
@@ -30,13 +97,111 @@ const PerformanceReport = () => {
         for (let i = 0; i < 30; i++) {
             const date = subDays(today, i);
             const dateStr = format(date, 'yyyy-MM-dd');
+            const isToday = i === 0;
 
             EMPLOYEES.forEach((name, idx) => {
                 // Randomly skip some employees on some days (simulating weekends/leave)
-                if (i > 0 && Math.random() > 0.8) return;
+                if (!isToday && Math.random() > 0.8) return;
 
-                const hours = Math.floor(Math.random() * 5) + 3; // 3 to 7 hours
-                const rxDecoded = Math.floor(Math.random() * 300) + 100; // 100-400
+                let hours, rxDecoded, verifiedCount, accuracy, productsDecoded, greenCount, greenSentCount, breakCount, breakMinutes, breakLogs, awayHours, submitAndCall;
+
+                if (isToday) {
+                    // Realistic "Today" data based on time (Shift starts 9 AM)
+                    const startOfShift = new Date(date);
+                    startOfShift.setHours(9, 0, 0, 0);
+
+                    if (today < startOfShift) {
+                        // Shift hasn't started or just started
+                        hours = 0; rxDecoded = 0; verifiedCount = 0; accuracy = 100; productsDecoded = 0;
+                        greenCount = 0; greenSentCount = 0; breakCount = 0; breakMinutes = 0; breakLogs = [];
+                        awayHours = 0; submitAndCall = 0;
+                    } else {
+                        const minutesPassed = differenceInMinutes(today, startOfShift);
+                        // Max ~8 hours work so far
+                        const effectiveMinutes = Math.min(minutesPassed, 480); // Cap at 8 hours for realism if looking late at night
+
+                        // Generate proportional data
+                        hours = effectiveMinutes / 60;
+
+                        // Rates: ~50 Rx/hr
+                        rxDecoded = Math.floor(hours * (40 + Math.random() * 20));
+                        verifiedCount = Math.floor(rxDecoded * (0.2 + Math.random() * 0.1)); // ~20-30% verified
+                        accuracy = Math.floor(Math.random() * 5) + 95; // High accuracy
+                        productsDecoded = Math.floor(rxDecoded * (0.8 + Math.random() * 0.4));
+                        greenCount = Math.floor(rxDecoded * 0.05);
+                        greenSentCount = Math.floor(greenCount * 0.8);
+                        submitAndCall = Math.floor(hours * Math.random() * 2);
+
+                        // Break Logic for Today
+                        breakLogs = [];
+                        breakCount = 0;
+                        breakMinutes = 0;
+                        if (hours > 2) {
+                            // Break every ~3 hours
+                            const maxBreaks = Math.floor(hours / 2.5);
+                            breakCount = Math.min(maxBreaks, Math.floor(Math.random() * (maxBreaks + 1)));
+
+                            for (let b = 0; b < breakCount; b++) {
+                                const duration = Math.floor(Math.random() * 10) + 5;
+
+                                // Simple sequential break times
+                                const breakStart = new Date(startOfShift.getTime() + (120 + b * 150) * 60000);
+                                const breakEnd = new Date(breakStart.getTime() + duration * 60000);
+
+                                const types = Object.keys(BREAK_TYPES);
+                                breakLogs.push({
+                                    type: types[Math.floor(Math.random() * types.length)],
+                                    startTime: breakStart.toISOString(),
+                                    endTime: breakEnd.toISOString(),
+                                    duration
+                                });
+                                breakMinutes += duration;
+                            }
+                            breakLogs.sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
+                        }
+
+                        awayHours = 0;
+                    }
+
+                } else {
+                    // History (Full Day)
+                    hours = Math.floor(Math.random() * 5) + 3; // 3 to 7 hours
+                    rxDecoded = Math.floor(Math.random() * 300) + 100; // 100-400
+                    verifiedCount = Math.floor(Math.random() * 70) + 30;
+                    accuracy = Math.floor(Math.random() * 15) + 85;
+                    productsDecoded = Math.floor(Math.random() * 300) + 100;
+                    greenCount = Math.floor(Math.random() * 15);
+                    greenSentCount = Math.floor(Math.random() * 10);
+                    submitAndCall = Math.floor(Math.random() * 10);
+                    awayHours = i === 1 ? (Math.random() > 0.9 ? 1 : 0) : 0; // Rare away hours
+
+                    // Generate Break Logs (History)
+                    breakLogs = [];
+                    breakCount = Math.floor(Math.random() * 3); // 0-2 breaks
+                    breakMinutes = 0;
+
+                    for (let b = 0; b < breakCount; b++) {
+                        const duration = Math.floor(Math.random() * 15) + 5; // 5-20 mins
+                        // Random start time
+                        const startHour = 10 + Math.floor(Math.random() * 6);
+                        const startMin = Math.floor(Math.random() * 60);
+                        const startTime = new Date(date);
+                        startTime.setHours(startHour, startMin, 0);
+                        const endTime = new Date(startTime.getTime() + duration * 60000);
+
+                        const types = Object.keys(BREAK_TYPES);
+                        const type = types[Math.floor(Math.random() * types.length)];
+
+                        breakLogs.push({
+                            type,
+                            startTime: startTime.toISOString(),
+                            endTime: endTime.toISOString(),
+                            duration
+                        });
+                        breakMinutes += duration;
+                    }
+                    breakLogs.sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
+                }
 
                 data.push({
                     id: `${dateStr}-${idx}`, // Unique ID based on date and employee
@@ -44,15 +209,16 @@ const PerformanceReport = () => {
                     date: dateStr,
                     hours: hours,
                     rxDecoded: rxDecoded,
-                    verifiedCount: Math.floor(Math.random() * 70) + 30, // 30-100
-                    accuracy: Math.floor(Math.random() * 15) + 85, // 85-99%
-                    productsDecoded: Math.floor(Math.random() * 300) + 100, // 100-400
-                    greenCount: Math.floor(Math.random() * 15), // 0-15
-                    greenSentCount: Math.floor(Math.random() * 10), // 0-10
-                    breakCount: Math.floor(Math.random() * 3), // 0-2
-                    breakMinutes: Math.floor(Math.random() * 10) + 2, // 2-12 mins
-                    awayHours: i === 0 ? 0 : (Math.random() > 0.9 ? 1 : 0), // Mostly 0
-                    submitAndCall: Math.floor(Math.random() * 10),
+                    verifiedCount: verifiedCount,
+                    accuracy: accuracy,
+                    productsDecoded: productsDecoded,
+                    greenCount: greenCount,
+                    greenSentCount: greenSentCount,
+                    breakCount: breakCount,
+                    breakMinutes: breakMinutes,
+                    breakLogs: breakLogs,
+                    awayHours: awayHours,
+                    submitAndCall: submitAndCall,
                 });
             });
         }
@@ -69,6 +235,7 @@ const PerformanceReport = () => {
     });
     const [isCalendarOpen, setIsCalendarOpen] = useState(false);
     const [filters, setFilters] = useState({ name: "", empId: "" });
+    const [modalConfig, setModalConfig] = useState({ isOpen: false, data: null });
 
     // --- Real-time Simulation for Today ---
     useEffect(() => {
@@ -100,6 +267,18 @@ const PerformanceReport = () => {
 
                         const newBreakCount = row.breakCount + (row.breakMinutes !== newBreakMinutes && Math.random() > 0.5 ? 1 : 0); // Roughly correlate break count with minutes
 
+                        const newBreakLogs = [...(row.breakLogs || [])];
+                        if (newBreakCount > row.breakCount) {
+                            // Add a new random break log
+                            const types = Object.keys(BREAK_TYPES);
+                            newBreakLogs.push({
+                                type: types[Math.floor(Math.random() * types.length)],
+                                startTime: new Date().toISOString(),
+                                endTime: new Date(new Date().getTime() + 60000).toISOString(), // Dummy end time 1 min later
+                                duration: 1
+                            });
+                        }
+
                         return {
                             ...row,
                             rxDecoded: newRx,
@@ -110,7 +289,8 @@ const PerformanceReport = () => {
                             greenSentCount: newGreenSent,
                             hours: newHours,
                             breakMinutes: newBreakMinutes,
-                            breakCount: newBreakCount
+                            breakCount: newBreakCount,
+                            breakLogs: newBreakLogs
                             // awayHours kept constant for simplicity or extremely rare update
                         };
                     }
@@ -168,6 +348,19 @@ const PerformanceReport = () => {
         setCallLogs([]);
     };
 
+    const handleBreakCountClick = (item) => {
+        if (item.breakCount > 0 && item.breakLogs) {
+            setModalConfig({
+                isOpen: true,
+                data: {
+                    title: item.name,
+                    subtitle: item.empId,
+                    breaks: item.breakLogs
+                }
+            });
+        }
+    };
+
     // --- Filtering & Aggregation Logic ---
     const filteredData = useMemo(() => {
         // If no date range selected, return empty or default
@@ -223,6 +416,11 @@ const PerformanceReport = () => {
             const totalAway = employeeRecords.reduce((sum, row) => sum + (row.awayHours || 0), 0);
             const totalBreakCount = employeeRecords.reduce((sum, row) => sum + (row.breakCount || 0), 0);
 
+            // Aggregate Break Logs
+            const aggregatedBreakLogs = employeeRecords.reduce((acc, row) => {
+                return acc.concat(row.breakLogs || []);
+            }, []).sort((a, b) => new Date(b.startTime) - new Date(a.startTime));
+
             // Average Accuracy
             const avgAccuracy = Math.floor(employeeRecords.reduce((sum, row) => sum + row.accuracy, 0) / employeeRecords.length);
 
@@ -244,7 +442,8 @@ const PerformanceReport = () => {
                 greenSentCount: totalGreenSent,
                 breakMinutes: totalBreakMinutes,
                 awayHours: totalAway,
-                breakCount: totalBreakCount
+                breakCount: totalBreakCount,
+                breakLogs: aggregatedBreakLogs
             };
         }).filter(Boolean);
     }, [allData, filters, dateRange]);
@@ -293,6 +492,13 @@ const PerformanceReport = () => {
 
     return (
         <div className="min-h-screen bg-slate-50 font-sans text-slate-800">
+            <BreakDetailsModal
+                isOpen={modalConfig.isOpen}
+                onClose={() => setModalConfig({ ...modalConfig, isOpen: false })}
+                title={modalConfig.data?.title}
+                subtitle={modalConfig.data?.subtitle}
+                breaks={modalConfig.data?.breaks}
+            />
             {/* Header */}
             <header className="bg-white border-b border-slate-200 px-6 py-4 sticky top-0 z-30 shadow-sm">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -473,9 +679,17 @@ const PerformanceReport = () => {
                                                     {row.greenSentCount || 0}
                                                 </span>
                                             </td>
-                                            <td className="px-6 py-4">{row.breakCount}</td>
                                             <td className="px-6 py-4">
-                                                {row.breakMinutes > 0 ? `${row.breakMinutes}Min` : ''}
+                                                <button
+                                                    onClick={() => handleBreakCountClick(row)}
+                                                    className={`font-bold ${row.breakCount > 0 ? 'text-indigo-600 hover:text-indigo-800 hover:underline decoration-indigo-600' : 'text-slate-400 cursor-default'}`}
+                                                    disabled={row.breakCount === 0}
+                                                >
+                                                    {row.breakCount}
+                                                </button>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                {row.breakMinutes > 0 ? `${row.breakMinutes}Min` : '0 Min'}
                                             </td>
                                             <td className="px-6 py-4 text-red-600 font-bold">{row.awayHours}</td>
                                             <td className="px-6 py-4">

@@ -26,6 +26,66 @@ const BREAK_TYPES = {
     VERIFY: { id: 'VERIFY', label: 'Verify Break', color: 'bg-amber-50 text-amber-700 border-amber-200 icon-amber-500' }
 };
 
+const BreakDetailsModal = ({ isOpen, onClose, title, subtitle, breaks }) => {
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-[2px]">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden transform transition-all animate-in fade-in zoom-in-95 duration-200">
+                <div className="bg-slate-50 px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+                    <div>
+                        <h3 className="text-lg font-bold text-slate-800">{title}</h3>
+                        <p className="text-xs text-slate-500 font-medium font-mono bg-slate-200 px-2 py-0.5 rounded inline-block mt-1">{subtitle}</p>
+                    </div>
+                    <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-full transition-colors text-slate-500">
+                        <X size={18} />
+                    </button>
+                </div>
+                <div className="p-0 max-h-[60vh] overflow-y-auto">
+                    {breaks && breaks.length > 0 ? (
+                        <table className="w-full text-sm text-left text-slate-600">
+                            <thead className="text-xs text-slate-700 uppercase bg-slate-50 border-b border-slate-100 sticky top-0">
+                                <tr>
+                                    <th className="px-6 py-3 font-semibold">S.No</th>
+                                    <th className="px-6 py-3 font-semibold">Break Type</th>
+                                    <th className="px-6 py-3 font-semibold">Start Time</th>
+                                    <th className="px-6 py-3 font-semibold">End Time</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                                {breaks.map((brk, idx) => (
+                                    <tr key={idx} className="hover:bg-slate-50">
+                                        <td className="px-6 py-4 font-medium">{idx + 1}</td>
+                                        <td className="px-6 py-4">
+                                            {BREAK_TYPES[brk.type] ? (
+                                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${BREAK_TYPES[brk.type].color}`}>
+                                                    {BREAK_TYPES[brk.type].label}
+                                                </span>
+                                            ) : brk.type}
+                                        </td>
+                                        <td className="px-6 py-4 font-mono text-xs">{format(parseISO(brk.startTime), 'MMM dd, yyyy HH:mm:ss')}</td>
+                                        <td className="px-6 py-4 font-mono text-xs">{format(parseISO(brk.endTime), 'MMM dd, yyyy HH:mm:ss')}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    ) : (
+                        <div className="p-8 text-center text-slate-400">
+                            <Coffee size={48} className="mx-auto mb-3 opacity-20" />
+                            <p>No breaks recorded for this period.</p>
+                        </div>
+                    )}
+                </div>
+                <div className="bg-slate-50 px-6 py-3 border-t border-slate-100 text-right">
+                    <button onClick={onClose} className="px-4 py-2 bg-white border border-slate-300 rounded-lg text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const BreakMonitoring = () => {
     const navigate = useNavigate();
     const location = useLocation();
@@ -40,6 +100,7 @@ const BreakMonitoring = () => {
     const [searchName, setSearchName] = useState('');
     const [searchPhone, setSearchPhone] = useState('');
     const [searchBreakType, setSearchBreakType] = useState('ALL');
+    const [modalConfig, setModalConfig] = useState({ isOpen: false, data: null });
 
     // Handle Query Params
     useEffect(() => {
@@ -68,13 +129,43 @@ const BreakMonitoring = () => {
         for (let i = 1; i <= 30; i++) {
             const d = subDays(today, i);
             const dateStr = format(d, 'yyyy-MM-dd');
-            data[dateStr] = EMPLOYEES.map(emp => ({
-                empId: emp.id,
+            data[dateStr] = EMPLOYEES.map(emp => {
                 // Random realistic past data
-                hoursWorked: Math.random() * 3 + 5, // 5-8 hours
-                dailyBreakCount: Math.floor(Math.random() * 3) + 2, // 2-4 breaks
-                dailyBreakDuration: Math.floor(Math.random() * 30) + 30 // 30-60 mins
-            }));
+                const hoursWorked = Math.random() * 3 + 5; // 5-8 hours
+                const dailyBreakCount = Math.floor(Math.random() * 3) + 2; // 2-4 breaks
+
+                const breakLogs = [];
+                let totalDuration = 0;
+
+                for (let b = 0; b < dailyBreakCount; b++) {
+                    const duration = Math.floor(Math.random() * 15) + 10; // 10-25 mins
+                    // Random start time between 10 AM and 5 PM
+                    const startHour = 10 + Math.floor(Math.random() * 7);
+                    const startMin = Math.floor(Math.random() * 60);
+                    const startTime = new Date(d);
+                    startTime.setHours(startHour, startMin, 0);
+                    const endTime = new Date(startTime.getTime() + duration * 60000);
+
+                    const types = Object.keys(BREAK_TYPES);
+                    const type = types[Math.floor(Math.random() * types.length)];
+
+                    breakLogs.push({
+                        type,
+                        startTime: startTime.toISOString(),
+                        endTime: endTime.toISOString(),
+                        duration
+                    });
+                    totalDuration += duration;
+                }
+
+                return {
+                    empId: emp.id,
+                    hoursWorked,
+                    dailyBreakCount,
+                    dailyBreakDuration: totalDuration,
+                    breakLogs: breakLogs.sort((a, b) => new Date(a.startTime) - new Date(b.startTime))
+                };
+            });
         }
         return data;
     };
@@ -150,6 +241,23 @@ const BreakMonitoring = () => {
                 breakStartTime = new Date(now.getTime() - Math.floor(Math.random() * 15 * 60000));
             }
 
+            // Generate logs for completed breaks
+            const breakLogs = [];
+            for (let k = 0; k < breakCount; k++) {
+                // Random time earlier today
+                const duration = Math.floor(breakTimeMinutes / (breakCount || 1));
+                const startTime = new Date(now.getTime() - (Math.random() * (minutesPassed - 30) + 30) * 60000);
+                const endTime = new Date(startTime.getTime() + duration * 60000);
+                const types = Object.keys(BREAK_TYPES);
+
+                breakLogs.push({
+                    type: types[Math.floor(Math.random() * types.length)],
+                    startTime: startTime.toISOString(),
+                    endTime: endTime.toISOString(),
+                    duration
+                });
+            }
+
             return {
                 empId: emp.id,
                 hoursWorked: workTimeMinutes / 60,
@@ -157,7 +265,8 @@ const BreakMonitoring = () => {
                 dailyBreakDuration: breakTimeMinutes,
                 isOnBreak: isOnBreak,
                 breakType: breakType,
-                breakStartTime: breakStartTime
+                breakStartTime: breakStartTime,
+                breakLogs // Current day's completed breaks
             };
         });
     };
@@ -232,6 +341,7 @@ const BreakMonitoring = () => {
             let totalBreaks = 0;
             let totalDuration = 0;
             let isOnBreakToday = false;
+            let aggregatedBreakLogs = [];
 
             // Check if "Today" is in range
             const today = startOfDay(new Date());
@@ -245,6 +355,7 @@ const BreakMonitoring = () => {
                     totalBreaks += todayEmp.dailyBreakCount;
                     totalDuration += todayEmp.dailyBreakDuration;
                     isOnBreakToday = todayEmp.isOnBreak;
+                    if (todayEmp.breakLogs) aggregatedBreakLogs = [...aggregatedBreakLogs, ...todayEmp.breakLogs];
                 }
             }
 
@@ -263,6 +374,7 @@ const BreakMonitoring = () => {
                         totalHours += pastEmp.hoursWorked;
                         totalBreaks += pastEmp.dailyBreakCount;
                         totalDuration += pastEmp.dailyBreakDuration;
+                        if (pastEmp.breakLogs) aggregatedBreakLogs = [...aggregatedBreakLogs, ...pastEmp.breakLogs];
                     }
                 }
                 iter = addDays(iter, 1);
@@ -275,7 +387,8 @@ const BreakMonitoring = () => {
                 hoursWorked: totalHours,
                 dailyBreakCount: totalBreaks,
                 dailyBreakDuration: totalDuration,
-                isOnBreak: isOnBreakToday // Only meaningful if Today is included
+                isOnBreak: isOnBreakToday, // Only meaningful if Today is included
+                breakLogs: aggregatedBreakLogs.sort((a, b) => new Date(b.startTime) - new Date(a.startTime))
             };
         }).filter(item => {
             return item.empId.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -354,8 +467,28 @@ const BreakMonitoring = () => {
         writeFile(wb, "Break_Performance_Report.xlsx");
     }
 
+    const handleBreakCountClick = (item) => {
+        if (item.dailyBreakCount > 0) {
+            setModalConfig({
+                isOpen: true,
+                data: {
+                    title: item.empName,
+                    subtitle: item.empId,
+                    breaks: item.breakLogs
+                }
+            });
+        }
+    };
+
     return (
         <div className="min-h-screen bg-slate-50 flex flex-col font-sans text-slate-900">
+            <BreakDetailsModal
+                isOpen={modalConfig.isOpen}
+                onClose={() => setModalConfig({ ...modalConfig, isOpen: false })}
+                title={modalConfig.data?.title}
+                subtitle={modalConfig.data?.subtitle}
+                breaks={modalConfig.data?.breaks}
+            />
             {/* Header */}
             <header className="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -560,7 +693,15 @@ const BreakMonitoring = () => {
                                             ) : (
                                                 <>
                                                     <td className="px-6 py-4">{formatDurationHours(row.hoursWorked)}</td>
-                                                    <td className="px-6 py-4">{row.dailyBreakCount}</td>
+                                                    <td className="px-6 py-4">
+                                                        <button
+                                                            onClick={() => handleBreakCountClick(row)}
+                                                            className={`font-bold ${row.dailyBreakCount > 0 ? 'text-indigo-600 hover:text-indigo-800 hover:underline decoration-indigo-600' : 'text-slate-400 cursor-default'}`}
+                                                            disabled={row.dailyBreakCount === 0}
+                                                        >
+                                                            {row.dailyBreakCount}
+                                                        </button>
+                                                    </td>
                                                     <td className="px-6 py-4">{formatDurationMin(row.dailyBreakDuration)}</td>
                                                 </>
                                             )}

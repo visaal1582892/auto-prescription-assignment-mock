@@ -215,7 +215,9 @@ const SupervisorDashboard = () => {
     const [performerMode, setPerformerMode] = useState('NORMAL'); // 'NORMAL' | 'GREEN'
     const [sortOrder, setSortOrder] = useState('desc'); // 'desc' (Top) | 'asc' (Least)
     const [currentPage, setCurrentPage] = useState(1);
-    const itemsPerPage = 5;
+    const [itemsPerPage] = useState(5);
+    const [alertPage, setAlertPage] = useState(1);
+    const alertItemsPerPage = 3;
 
     // --- Top Performers Data Generation (Last 7 Days) ---
     // We'll simulate this data once on mount, as 7-day trailing data doesn't change second-by-second like live stats
@@ -353,6 +355,22 @@ const SupervisorDashboard = () => {
         const duration = Date.now() - alert.startTime;
         return duration > 5 * 60 * 1000 && alert.type === 'pending';
     });
+
+    // Pagination for Alerts
+    const totalAlertPages = Math.ceil(filteredAlerts.length / alertItemsPerPage);
+    const paginatedAlerts = filteredAlerts.slice(
+        (alertPage - 1) * alertItemsPerPage,
+        alertPage * alertItemsPerPage
+    );
+
+    // Reset alert page if out of bounds (e.g. after dismissal)
+    useEffect(() => {
+        if (alertPage > totalAlertPages && totalAlertPages > 0) {
+            setAlertPage(totalAlertPages);
+        } else if (totalAlertPages === 0 && alertPage !== 1) {
+            setAlertPage(1);
+        }
+    }, [totalAlertPages, alertPage]);
 
     const handleDismiss = (id, e) => {
         e.stopPropagation();
@@ -701,14 +719,15 @@ const SupervisorDashboard = () => {
                                 </h2>
                                 <span className="bg-red-200 text-red-800 text-xs font-bold px-2 py-0.5 rounded-full">{filteredAlerts.length} Active (&gt;5m)</span>
                             </div>
-                            <div className="divide-y divide-red-50">
-                                {filteredAlerts.length === 0 ? (
-                                    <div className="p-4 text-center text-slate-500 text-sm">
+                            <div className="divide-y divide-red-50 min-h-[220px]">
+                                {paginatedAlerts.length === 0 ? (
+                                    <div className="p-4 text-center text-slate-500 text-sm flex flex-col items-center justify-center h-full">
+                                        <CheckCircle size={24} className="text-emerald-400 mb-2" />
                                         No critical alerts pending for more than 5 minutes.
                                     </div>
                                 ) : (
-                                    filteredAlerts.map((alert) => (
-                                        <div key={alert.id} className="p-3 flex items-start gap-3 hover:bg-red-50/50 transition-colors">
+                                    paginatedAlerts.map((alert) => (
+                                        <div key={alert.id} className="p-3 flex items-start gap-3 hover:bg-red-50/50 transition-colors animate-in fade-in duration-300">
                                             <AlertTriangle size={18} className={alert.type === 'idle' ? 'text-amber-500' : 'text-red-600'} />
                                             <div className="flex-1">
                                                 <p className="text-sm font-medium text-slate-800">{alert.message}</p>
@@ -730,13 +749,54 @@ const SupervisorDashboard = () => {
                                                     </button>
                                                 </div>
                                             </div>
-                                            <span className="text-xs font-mono font-bold text-red-600">
+                                            <span className="text-xs font-mono font-bold text-red-600 whitespace-nowrap">
                                                 {formatDuration(alert.startTime)}
                                             </span>
                                         </div>
                                     ))
                                 )}
                             </div>
+                            {/* Pagination Footer */}
+                            {totalAlertPages > 1 && (
+                                <div className="bg-red-50/50 px-4 py-2 border-t border-red-50 flex items-center justify-between text-xs">
+                                    <div className="flex gap-1 items-center">
+                                        <button
+                                            onClick={() => setAlertPage(p => Math.max(1, p - 1))}
+                                            disabled={alertPage === 1}
+                                            className="px-2 py-1 bg-white border border-red-100 rounded hover:bg-red-50 disabled:opacity-50 disabled:hover:bg-white text-slate-600"
+                                        >
+                                            Prev
+                                        </button>
+
+                                        {/* Page Numbers */}
+                                        <div className="flex gap-1 mx-2">
+                                            {Array.from({ length: totalAlertPages }, (_, i) => i + 1).map(pageNum => (
+                                                <button
+                                                    key={pageNum}
+                                                    onClick={() => setAlertPage(pageNum)}
+                                                    className={`w-6 h-6 flex items-center justify-center rounded border transition-colors ${alertPage === pageNum
+                                                            ? 'bg-red-600 text-white border-red-600 font-bold'
+                                                            : 'bg-white text-slate-600 border-red-100 hover:bg-red-50'
+                                                        }`}
+                                                >
+                                                    {pageNum}
+                                                </button>
+                                            ))}
+                                        </div>
+
+                                        <button
+                                            onClick={() => setAlertPage(p => Math.min(totalAlertPages, p + 1))}
+                                            disabled={alertPage === totalAlertPages}
+                                            className="px-2 py-1 bg-white border border-red-100 rounded hover:bg-red-50 disabled:opacity-50 disabled:hover:bg-white text-slate-600"
+                                        >
+                                            Next
+                                        </button>
+                                    </div>
+                                    <span className="text-slate-400">
+                                        Total {filteredAlerts.length}
+                                    </span>
+                                </div>
+                            )}
                         </div>
                     </div>
 
