@@ -567,12 +567,15 @@ const SupervisorDashboard = () => {
                                         <Briefcase size={18} />
                                     </div>
                                 </div>
-                                <div className="bg-amber-50 rounded-lg p-3 border border-amber-100 flex items-center justify-between">
+                                <div
+                                    onClick={() => navigate('/break-monitoring?mode=LIVE', { state: { onBreakCount: displayStats.onBreak } })}
+                                    className="bg-amber-50 rounded-lg p-3 border border-amber-100 flex items-center justify-between cursor-pointer hover:bg-amber-100 transition-colors group"
+                                >
                                     <div>
-                                        <p className="text-xs text-amber-600 font-bold uppercase tracking-wider">On Break</p>
+                                        <p className="text-xs text-amber-600 font-bold uppercase tracking-wider group-hover:underline">On Break</p>
                                         <p className="text-2xl font-bold text-amber-700">{displayStats.onBreak}</p>
                                     </div>
-                                    <div className="p-2 bg-white rounded-full text-amber-500 shadow-sm">
+                                    <div className="p-2 bg-white rounded-full text-amber-500 shadow-sm group-hover:scale-110 transition-transform">
                                         <Coffee size={18} />
                                     </div>
                                 </div>
