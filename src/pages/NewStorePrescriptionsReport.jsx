@@ -33,7 +33,7 @@ const NewStorePrescriptionsReport = () => {
             'Karnataka': ['Bangalore', 'Mysore'],
             'Tamil Nadu': ['Chennai', 'Coimbatore']
         };
-        const employees = ["Alice Cooper", "Bob Martin", "Charlie Day", "Diana Prince", "Evan Wright"];
+        const employees = ["EMP-101", "EMP-102", "EMP-103", "EMP-104", "EMP-105"];
 
         // Generate for past 30 days
         for (let d = 0; d < 30; d++) {
@@ -58,6 +58,8 @@ const NewStorePrescriptionsReport = () => {
                     completedTime.setMinutes(receivedTime.getMinutes() + Math.floor(Math.random() * 120) + 5); // 5m to 2h later
                     decodedBy = employees[Math.floor(Math.random() * employees.length)];
                 }
+
+                const prescriptionType = Math.random() > 0.5 ? 'Emergency' : 'Save';
 
                 const stateCodes = {
                     'Telangana': 'TG',
@@ -89,6 +91,7 @@ const NewStorePrescriptionsReport = () => {
                 data.push({
                     id: `NSP-${d}-${i}`,
                     prescriptionId: `RX-${20000 + startOfDay(date).getTime() + i}`,
+                    prescriptionType: prescriptionType,
                     storeId: storeId,
                     state: state,
                     city: city,
@@ -114,6 +117,7 @@ const NewStorePrescriptionsReport = () => {
     // Column Filters
     const [filters, setFilters] = useState({
         prescriptionId: '',
+        prescriptionType: 'All', // New Filter
         storeId: '',
         state: 'All',
         city: 'All',
@@ -149,6 +153,9 @@ const NewStorePrescriptionsReport = () => {
             // 2. Column Filters
             // Prescription ID
             if (filters.prescriptionId && !row.prescriptionId.toLowerCase().includes(filters.prescriptionId.toLowerCase())) return false;
+
+            // Prescription Type
+            if (filters.prescriptionType !== 'All' && row.prescriptionType !== filters.prescriptionType) return false;
 
             // Store ID
             if (filters.storeId && !row.storeId.toLowerCase().includes(filters.storeId.toLowerCase())) return false;
@@ -193,6 +200,7 @@ const NewStorePrescriptionsReport = () => {
     const hasActiveFilters = useMemo(() => {
         return (
             filters.prescriptionId !== '' ||
+            filters.prescriptionType !== 'All' ||
             filters.storeId !== '' ||
             filters.state !== 'All' ||
             filters.city !== 'All' ||
@@ -205,6 +213,7 @@ const NewStorePrescriptionsReport = () => {
     const clearFilters = () => {
         setFilters({
             prescriptionId: '',
+            prescriptionType: 'All',
             storeId: '',
             state: 'All',
             city: 'All',
@@ -218,6 +227,7 @@ const NewStorePrescriptionsReport = () => {
     const handleExport = () => {
         const exportData = filteredData.map(row => ({
             "Prescription ID": row.prescriptionId,
+            "Prescription Type": row.prescriptionType,
             "Store ID": row.storeId,
             "State": row.state,
             "City": row.city,
@@ -370,6 +380,22 @@ const NewStorePrescriptionsReport = () => {
                                         </div>
                                     </th>
 
+                                    {/* Prescription Type Filter */}
+                                    <th className="px-4 py-4 min-w-[140px]">
+                                        <div className="flex flex-col gap-2">
+                                            <span>Prescription Type</span>
+                                            <select
+                                                className="w-full px-2 py-1 text-xs border border-slate-300 rounded focus:outline-none focus:border-indigo-500 font-normal"
+                                                value={filters.prescriptionType}
+                                                onChange={(e) => setFilters(prev => ({ ...prev, prescriptionType: e.target.value }))}
+                                            >
+                                                <option value="All">All</option>
+                                                <option value="Emergency">Emergency</option>
+                                                <option value="Save">Save</option>
+                                            </select>
+                                        </div>
+                                    </th>
+
                                     {/* Store ID Filter */}
                                     <th className="px-4 py-4 min-w-[120px]">
                                         <div className="flex flex-col gap-2">
@@ -470,7 +496,7 @@ const NewStorePrescriptionsReport = () => {
                                                 <Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400" />
                                                 <input
                                                     type="text"
-                                                    placeholder="Search Name..."
+                                                    placeholder="Search ID..."
                                                     className="w-full pl-7 pr-2 py-1 text-xs border border-slate-300 rounded focus:outline-none focus:border-indigo-500 font-normal"
                                                     value={filters.decodedBy}
                                                     onChange={(e) => setFilters(prev => ({ ...prev, decodedBy: e.target.value }))}
@@ -485,6 +511,14 @@ const NewStorePrescriptionsReport = () => {
                                     paginatedData.map((row) => (
                                         <tr key={row.id} className="bg-white hover:bg-slate-50 transition-colors">
                                             <td className="px-4 py-4 font-mono font-medium text-indigo-600 text-xs">{row.prescriptionId}</td>
+                                            <td className="px-4 py-4 text-xs font-medium">
+                                                <span className={`px-2 py-0.5 rounded-full border ${row.prescriptionType === 'Emergency'
+                                                    ? 'bg-red-50 text-red-600 border-red-100'
+                                                    : 'bg-blue-50 text-blue-600 border-blue-100'
+                                                    }`}>
+                                                    {row.prescriptionType}
+                                                </span>
+                                            </td>
                                             <td className="px-4 py-4 font-mono text-xs text-slate-500">{row.storeId}</td>
                                             <td className="px-4 py-4 text-xs">{row.state}</td>
                                             <td className="px-4 py-4 text-xs">{row.city}</td>
