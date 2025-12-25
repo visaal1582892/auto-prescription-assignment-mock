@@ -455,6 +455,13 @@ const SupervisorDashboard = () => {
                                     Prescription Report
                                 </button>
                                 <button
+                                    onClick={() => navigate('/new-store-prescriptions-report')}
+                                    className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-indigo-600 flex items-center gap-2"
+                                >
+                                    <FileText size={16} />
+                                    New Store Prescriptions Report
+                                </button>
+                                <button
                                     onClick={() => navigate('/break-monitoring')}
                                     className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-indigo-600 flex items-center gap-2"
                                 >
@@ -775,8 +782,8 @@ const SupervisorDashboard = () => {
                                                     key={pageNum}
                                                     onClick={() => setAlertPage(pageNum)}
                                                     className={`w-6 h-6 flex items-center justify-center rounded border transition-colors ${alertPage === pageNum
-                                                            ? 'bg-red-600 text-white border-red-600 font-bold'
-                                                            : 'bg-white text-slate-600 border-red-100 hover:bg-red-50'
+                                                        ? 'bg-red-600 text-white border-red-600 font-bold'
+                                                        : 'bg-white text-slate-600 border-red-100 hover:bg-red-50'
                                                         }`}
                                                 >
                                                     {pageNum}

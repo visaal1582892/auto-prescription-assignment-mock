@@ -17,6 +17,8 @@ import VerificationsReport from './pages/VerificationsReport';
 import StoreOrderSearch from './pages/StoreOrderSearch';
 import VerificationWorkflow from './pages/VerificationWorkflow';
 
+import NewStorePrescriptionsReport from './pages/NewStorePrescriptionsReport';
+
 // Mock Protected Route Component
 const ProtectedRoute = ({ children }) => {
   const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
@@ -81,6 +83,14 @@ const App = () => {
           element={
             <ProtectedRoute>
               <PrescriptionReport />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/new-store-prescriptions-report"
+          element={
+            <ProtectedRoute>
+              <NewStorePrescriptionsReport />
             </ProtectedRoute>
           }
         />

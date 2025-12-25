@@ -15,7 +15,8 @@ import {
     Phone,
     Clock,
     AlertTriangle,
-    CheckCircle2
+    CheckCircle2,
+    XCircle
 } from 'lucide-react';
 import 'react-day-picker/style.css';
 
@@ -95,6 +96,7 @@ const BreakMonitoring = () => {
     const [dateRange, setDateRange] = useState({ from: new Date(), to: new Date() });
     const [isCalendarOpen, setIsCalendarOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
+    const [searchHistoricalName, setSearchHistoricalName] = useState(''); // New State for Historical Name Search
 
     // Column Filters for Live Mode
     const [searchName, setSearchName] = useState('');
@@ -391,10 +393,14 @@ const BreakMonitoring = () => {
                 breakLogs: aggregatedBreakLogs.sort((a, b) => new Date(b.startTime) - new Date(a.startTime))
             };
         }).filter(item => {
-            return item.empId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                item.empName.toLowerCase().includes(searchTerm.toLowerCase());
+            // Apply ID filter
+            const matchesId = item.empId.toLowerCase().includes(searchTerm.toLowerCase());
+            // Apply Name filter (New)
+            const matchesName = item.empName.toLowerCase().includes(searchHistoricalName.toLowerCase());
+
+            return matchesId && matchesName;
         });
-    }, [dateRange, todaysData, historicalData, searchTerm]);
+    }, [dateRange, todaysData, historicalData, searchTerm, searchHistoricalName]);
 
     // Live Data Filtered
     const liveMonitorData = useMemo(() => {
@@ -451,7 +457,27 @@ const BreakMonitoring = () => {
     const paginatedData = finalDisplayData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
     const totalPages = Math.ceil(finalDisplayData.length / itemsPerPage);
 
-    useEffect(() => { setCurrentPage(1); }, [searchTerm, dateRange, activeTab, searchName, searchPhone, searchBreakType]);
+    useEffect(() => { setCurrentPage(1); }, [searchTerm, searchHistoricalName, dateRange, activeTab, searchName, searchPhone, searchBreakType]);
+
+    // Check if any filters are active
+    const hasActiveFilters = useMemo(() => {
+        if (activeTab === 'HISTORICAL') {
+            return searchTerm !== '' || searchHistoricalName !== '';
+        } else {
+            return searchTerm !== '' || searchName !== '' || searchPhone !== '' || searchBreakType !== 'ALL';
+        }
+    }, [activeTab, searchTerm, searchHistoricalName, searchName, searchPhone, searchBreakType]);
+
+    const clearFilters = () => {
+        setSearchTerm('');
+        if (activeTab === 'HISTORICAL') {
+            setSearchHistoricalName('');
+        } else {
+            setSearchName('');
+            setSearchPhone('');
+            setSearchBreakType('ALL');
+        }
+    };
 
     const handleExport = () => {
         const ws = utils.json_to_sheet(reportData.map(r => ({
@@ -567,6 +593,17 @@ const BreakMonitoring = () => {
                                 <Download size={16} />
                                 Export
                             </button>
+
+                            {/* Clear Filters Button */}
+                            {hasActiveFilters && (
+                                <button
+                                    onClick={clearFilters}
+                                    className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg text-sm font-bold hover:bg-slate-50 transition-all"
+                                >
+                                    <XCircle size={16} />
+                                    Clear Filters
+                                </button>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -648,10 +685,24 @@ const BreakMonitoring = () => {
                                         </>
                                     ) : (
                                         <>
-                                            <th className="px-6 py-4 text-left">Emp Name</th>
-                                            <th className="px-6 py-4">Hours Worked</th>
-                                            <th className="px-6 py-4">No. of Breaks</th>
-                                            <th className="px-6 py-4">Break Duration</th>
+                                            <th className="px-6 py-4 text-left min-w-[200px]">
+                                                <div className="flex flex-col gap-2">
+                                                    <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Emp Name</span>
+                                                    <div className="relative">
+                                                        <Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400" />
+                                                        <input
+                                                            type="text"
+                                                            placeholder="Search Name..."
+                                                            className="w-full pl-7 pr-2 py-1 text-xs border border-slate-300 rounded focus:outline-none focus:border-indigo-500 font-normal normal-case"
+                                                            value={searchHistoricalName}
+                                                            onChange={(e) => setSearchHistoricalName(e.target.value)}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </th>
+                                            <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Hours Worked</th>
+                                            <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">No. of Breaks</th>
+                                            <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Break Duration</th>
                                         </>
                                     )}
                                 </tr>
