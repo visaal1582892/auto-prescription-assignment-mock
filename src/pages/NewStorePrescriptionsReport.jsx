@@ -15,7 +15,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { utils, writeFile } from 'xlsx';
 import { DayPicker } from 'react-day-picker';
-import { format, subDays, isAfter, startOfDay, endOfDay, isWithinInterval, parseISO, isSameDay } from 'date-fns';
+import { format, subDays, isAfter, startOfDay, endOfDay, isWithinInterval, parseISO, isSameDay, differenceInDays } from 'date-fns';
 import 'react-day-picker/style.css';
 
 const NewStorePrescriptionsReport = () => {
@@ -23,9 +23,11 @@ const NewStorePrescriptionsReport = () => {
 
     // --- Mock Data Generation ---
     const generateData = () => {
-        const data = [];
         const today = new Date();
-        const statuses = ['Pending', 'Completed'];
+        const employees = ["EMP-101", "EMP-102", "EMP-103", "EMP-104", "EMP-105"];
+
+        // 1. Generate "New" Stores (Started within last 100 days)
+        const stores = [];
         const states = ['Telangana', 'Andhra Pradesh', 'Karnataka', 'Tamil Nadu'];
         const citiesMap = {
             'Telangana': ['Hyderabad', 'Warangal', 'Karimnagar'],
@@ -33,68 +35,78 @@ const NewStorePrescriptionsReport = () => {
             'Karnataka': ['Bangalore', 'Mysore'],
             'Tamil Nadu': ['Chennai', 'Coimbatore']
         };
-        const employees = ["EMP-101", "EMP-102", "EMP-103", "EMP-104", "EMP-105"];
+        const stateCodes = {
+            'Telangana': 'TG', 'Andhra Pradesh': 'AP', 'Karnataka': 'KA', 'Tamil Nadu': 'TN'
+        };
+        const cityCodes = {
+            'Hyderabad': 'HYD', 'Warangal': 'WAR', 'Karimnagar': 'KAR',
+            'Visakhapatnam': 'VIZ', 'Vijayawada': 'VIJ', 'Guntur': 'GNT',
+            'Bangalore': 'BLR', 'Mysore': 'MYS',
+            'Chennai': 'CHN', 'Coimbatore': 'CBE'
+        };
 
-        // Generate for past 30 days
+        // Create 50 random new stores
+        for (let i = 0; i < 50; i++) {
+            const state = states[Math.floor(Math.random() * states.length)];
+            const city = citiesMap[state][Math.floor(Math.random() * citiesMap[state].length)];
+            const randomNum = Math.floor(Math.random() * 9000) + 1000;
+            const storeId = `IN${stateCodes[state]}${cityCodes[city]}${randomNum}`;
+
+            // Random start date within last 100 days
+            const daysAgo = Math.floor(Math.random() * 100);
+            const startDate = subDays(today, daysAgo);
+
+            stores.push({
+                storeId,
+                state,
+                city,
+                startDate: startDate.toISOString()
+            });
+        }
+
+        const data = [];
+
+        // Generate Prescriptions for past 30 days linked to these stores
+        // (Note: In reality, a store wouldn't have prescriptions before its start date, 
+        // but for simplicity we'll just ensure the prescription date is >= store start date if we wanted strict realism.
+        // For this mock, we'll assume the 30-day report window is relevant.)
+
         for (let d = 0; d < 30; d++) {
             const date = subDays(today, d);
-            const dateStr = format(date, 'yyyy-MM-dd');
 
             // Generate 15-40 prescriptions per day
             const count = Math.floor(Math.random() * 25) + 15;
 
             for (let i = 0; i < count; i++) {
+                // Pick a random store
+                const store = stores[Math.floor(Math.random() * stores.length)];
+
+                // Ensure prescription date isn't before store start date (basic realism)
+                if (isAfter(parseISO(store.startDate), date)) continue;
+
                 const receivedTime = new Date(date);
-                receivedTime.setHours(Math.floor(Math.random() * 14) + 8, Math.floor(Math.random() * 60)); // 8 AM to 10 PM
+                receivedTime.setHours(Math.floor(Math.random() * 14) + 8, Math.floor(Math.random() * 60));
 
-                // 70% completed, 30% pending
                 const status = Math.random() > 0.3 ? 'Completed' : 'Pending';
-
                 let completedTime = null;
                 let decodedBy = '-';
 
                 if (status === 'Completed') {
                     completedTime = new Date(receivedTime);
-                    completedTime.setMinutes(receivedTime.getMinutes() + Math.floor(Math.random() * 120) + 5); // 5m to 2h later
+                    completedTime.setMinutes(receivedTime.getMinutes() + Math.floor(Math.random() * 120) + 5);
                     decodedBy = employees[Math.floor(Math.random() * employees.length)];
                 }
 
                 const prescriptionType = Math.random() > 0.5 ? 'Emergency' : 'Save';
 
-                const stateCodes = {
-                    'Telangana': 'TG',
-                    'Andhra Pradesh': 'AP',
-                    'Karnataka': 'KA',
-                    'Tamil Nadu': 'TN'
-                };
-
-                const cityCodes = {
-                    'Hyderabad': 'HYD',
-                    'Warangal': 'WAR',
-                    'Karimnagar': 'KAR',
-                    'Visakhapatnam': 'VIZ',
-                    'Vijayawada': 'VIJ',
-                    'Guntur': 'GNT',
-                    'Bangalore': 'BLR',
-                    'Mysore': 'MYS',
-                    'Chennai': 'CHN',
-                    'Coimbatore': 'CBE'
-                };
-
-                const state = states[Math.floor(Math.random() * states.length)];
-                const city = citiesMap[state][Math.floor(Math.random() * citiesMap[state].length)];
-
-                // Format: IN + StateCode + CityCode + 4 Digits (e.g., INAPHYD1234)
-                const randomNum = Math.floor(Math.random() * 9000) + 1000;
-                const storeId = `IN${stateCodes[state]}${cityCodes[city]}${randomNum}`;
-
                 data.push({
                     id: `NSP-${d}-${i}`,
-                    prescriptionId: `RX-${20000 + startOfDay(date).getTime() + i}`,
+                    prescriptionId: `RX-${20000 + startOfDay(date).getTime() + i + Math.floor(Math.random() * 1000)}`,
                     prescriptionType: prescriptionType,
-                    storeId: storeId,
-                    state: state,
-                    city: city,
+                    storeId: store.storeId,
+                    storeStartDate: store.startDate, // Attach for easy access
+                    state: store.state,
+                    city: store.city,
                     status: status,
                     receivedAt: receivedTime.toISOString(),
                     completedAt: completedTime ? completedTime.toISOString() : null,
@@ -129,6 +141,29 @@ const NewStorePrescriptionsReport = () => {
     // Pagination State
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 10;
+
+
+    // Store Details Modal State
+    const [selectedStore, setSelectedStore] = useState(null);
+
+    const handleStoreClick = (row) => {
+        // Calculate Aggregate Stats for this store
+        const storeStats = allData.filter(r => r.storeId === row.storeId);
+        const emergencyCount = storeStats.filter(r => r.prescriptionType === 'Emergency').length;
+        const saveCount = storeStats.filter(r => r.prescriptionType === 'Save').length;
+
+        setSelectedStore({
+            storeId: row.storeId,
+            startDate: row.storeStartDate,
+            state: row.state,
+            city: row.city,
+            totalPrescriptions: storeStats.length,
+            saveCount,
+            emergencyCount
+        });
+    };
+
+    const closeStoreModal = () => setSelectedStore(null);
 
     // Derived Lists for Dropdowns
     const uniqueStates = useMemo(() => ['All', ...new Set(allData.map(d => d.state))], [allData]);
@@ -357,6 +392,72 @@ const NewStorePrescriptionsReport = () => {
                 </div>
             </header >
 
+            {/* Store Details Modal */}
+            {
+                selectedStore && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+                        <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+                            {/* Modal Header */}
+                            <div className="bg-indigo-600 px-6 py-4 flex justify-between items-center text-white">
+                                <div>
+                                    <h3 className="text-lg font-bold">Store Details</h3>
+                                    <p className="text-indigo-100 text-xs font-mono mt-0.5">{selectedStore.storeId}</p>
+                                </div>
+                                <button onClick={closeStoreModal} className="text-white/80 hover:text-white transition-colors">
+                                    <XCircle size={24} />
+                                </button>
+                            </div>
+
+                            {/* Modal Body */}
+                            <div className="p-6 space-y-6">
+                                {/* Key Metrics Grid */}
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="bg-slate-50 p-4 rounded-lg text-center border border-slate-100">
+                                        <p className="text-xs text-slate-500 uppercase font-bold tracking-wider mb-1">Store Started</p>
+                                        <p className="text-slate-900 font-bold">{format(parseISO(selectedStore.startDate), 'dd MMM yyyy')}</p>
+                                        <p className="text-[10px] text-indigo-600 mt-1 font-medium">
+                                            {differenceInDays(new Date(), parseISO(selectedStore.startDate))} days ago
+                                        </p>
+                                    </div>
+                                    <div className="bg-slate-50 p-4 rounded-lg text-center border border-slate-100">
+                                        <p className="text-xs text-slate-500 uppercase font-bold tracking-wider mb-1">Total Received</p>
+                                        <p className="text-2xl font-bold text-slate-900">{selectedStore.totalPrescriptions}</p>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-3">
+                                    <p className="text-sm font-bold text-slate-700 border-b border-slate-100 pb-2">Prescription Breakdown</p>
+
+                                    {/* Emergency Row */}
+                                    <div className="flex items-center justify-between p-3 bg-red-50 rounded-lg border border-red-100">
+                                        <div className="flex items-center gap-2">
+                                            <span className="w-2 h-2 rounded-full bg-red-500"></span>
+                                            <span className="text-sm font-medium text-red-900">Emergency</span>
+                                        </div>
+                                        <span className="text-lg font-bold text-red-700">{selectedStore.emergencyCount}</span>
+                                    </div>
+
+                                    {/* Save Row */}
+                                    <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg border border-blue-100">
+                                        <div className="flex items-center gap-2">
+                                            <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                                            <span className="text-sm font-medium text-blue-900">Save</span>
+                                        </div>
+                                        <span className="text-lg font-bold text-blue-700">{selectedStore.saveCount}</span>
+                                    </div>
+                                </div>
+
+                                <div className="text-center pt-2">
+                                    <p className="text-xs text-slate-400">
+                                        {selectedStore.city}, {selectedStore.state}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )
+            }
+
             <main className="max-w-[95%] mx-auto p-6">
                 <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                     <div className="overflow-x-auto">
@@ -519,7 +620,14 @@ const NewStorePrescriptionsReport = () => {
                                                     {row.prescriptionType}
                                                 </span>
                                             </td>
-                                            <td className="px-4 py-4 font-mono text-xs text-slate-500">{row.storeId}</td>
+                                            <td className="px-4 py-4">
+                                                <button
+                                                    onClick={() => handleStoreClick(row)}
+                                                    className="font-mono text-xs text-indigo-600 hover:text-indigo-800 hover:underline font-medium transition-colors"
+                                                >
+                                                    {row.storeId}
+                                                </button>
+                                            </td>
                                             <td className="px-4 py-4 text-xs">{row.state}</td>
                                             <td className="px-4 py-4 text-xs">{row.city}</td>
                                             <td className="px-4 py-4">
