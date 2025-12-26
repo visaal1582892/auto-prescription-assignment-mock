@@ -264,6 +264,8 @@ const NewStorePrescriptionsReport = () => {
             "Prescription ID": row.prescriptionId,
             "Prescription Type": row.prescriptionType,
             "Store ID": row.storeId,
+            "Store Start Date": format(parseISO(row.storeStartDate), 'dd MMM yyyy'),
+            "Days From Start": differenceInDays(new Date(), parseISO(row.storeStartDate)),
             "State": row.state,
             "City": row.city,
             "Status": row.status,
