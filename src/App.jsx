@@ -18,6 +18,7 @@ import StoreOrderSearch from './pages/StoreOrderSearch';
 import VerificationWorkflow from './pages/VerificationWorkflow';
 
 import NewStorePrescriptionsReport from './pages/NewStorePrescriptionsReport';
+import PrescriptionVerification from './pages/PrescriptionVerification';
 
 // Mock Protected Route Component
 const ProtectedRoute = ({ children }) => {
@@ -147,6 +148,14 @@ const App = () => {
           element={
             <ProtectedRoute>
               <VerificationWorkflow />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/verification/:id"
+          element={
+            <ProtectedRoute>
+              <PrescriptionVerification />
             </ProtectedRoute>
           }
         />

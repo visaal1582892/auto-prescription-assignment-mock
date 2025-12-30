@@ -25,7 +25,7 @@ const PrescriptionReport = () => {
         const data = [];
         const today = new Date();
         const statuses = ['Decoded', 'Not Decoded', 'Returned'];
-        const types = ['Normal', 'Green'];
+        const types = ['Emergency', 'Green', 'Critical (>5 min)'];
         const employees = ["Alice Cooper", "Bob Martin", "Charlie Day", "Diana Prince", "Evan Wright"];
 
         // Generate for past 30 days
@@ -334,8 +334,9 @@ const PrescriptionReport = () => {
                                                 onChange={(e) => setFilters(prev => ({ ...prev, type: e.target.value }))}
                                             >
                                                 <option value="All">All</option>
-                                                <option value="Normal">Normal</option>
+                                                <option value="Emergency">Emergency</option>
                                                 <option value="Green">Green</option>
+                                                <option value="Critical (>5 min)">Critical (&gt;5 min)</option>
                                             </select>
                                         </div>
                                     </th>
@@ -372,7 +373,10 @@ const PrescriptionReport = () => {
                                             </td>
                                             <td className="px-6 py-4">
                                                 <span className={`px-2 py-1 rounded text-xs font-bold 
-                                                    ${row.type === 'Green' ? 'bg-green-100 text-green-800' : 'bg-blue-50 text-blue-700'}`}>
+                                                    ${row.type === 'Green' ? 'bg-green-100 text-green-800' :
+                                                        row.type === 'Emergency' ? 'bg-red-50 text-red-700' :
+                                                            row.type === 'Critical (>5 min)' ? 'bg-orange-100 text-orange-800' :
+                                                                'bg-blue-50 text-blue-700'}`}>
                                                     {row.type}
                                                 </span>
                                             </td>

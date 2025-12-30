@@ -258,7 +258,7 @@ const SupervisorDashboard = () => {
         {
             id: 1,
             type: 'pending',
-            message: "RX-9921 pending",
+            message: "RX-9921",
             severity: 'high',
             startTime: Date.now() - (8 * 60 * 1000 + 45 * 1000), // 8m 45s ago
             assignedTo: "Alice Cooper",
@@ -268,7 +268,7 @@ const SupervisorDashboard = () => {
         {
             id: 2,
             type: 'idle',
-            message: "User 'J.Doe' idle for 2m 15s (No Break Logged) - KPI Impact Alert",
+            message: "User 'J.Doe' (Idle)",
             severity: 'high',
             startTime: Date.now() - (2 * 60 * 1000 + 15 * 1000), // 2m 15s ago
             assignedTo: "J. Doe",
@@ -278,7 +278,7 @@ const SupervisorDashboard = () => {
         {
             id: 3,
             type: 'pending',
-            message: "RX-8822 pending",
+            message: "RX-8822",
             severity: 'high',
             startTime: Date.now() - (6 * 60 * 1000 + 10 * 1000), // 6m 10s ago
             assignedTo: "Bob Martin",
@@ -288,7 +288,7 @@ const SupervisorDashboard = () => {
         {
             id: 4,
             type: 'pending',
-            message: "RX-7743 pending validation",
+            message: "RX-7743",
             severity: 'high',
             startTime: Date.now() - (12 * 60 * 1000), // 12m ago
             assignedTo: "Diana Prince",
@@ -298,7 +298,7 @@ const SupervisorDashboard = () => {
         {
             id: 5,
             type: 'pending',
-            message: "RX-6632 stuck in processing",
+            message: "RX-6632",
             severity: 'high',
             startTime: Date.now() - (9 * 60 * 1000 + 30 * 1000), // 9m 30s ago
             assignedTo: "Evan Wright",
@@ -308,7 +308,7 @@ const SupervisorDashboard = () => {
         {
             id: 6,
             type: 'pending',
-            message: "RX-5591 pending review",
+            message: "RX-5591",
             severity: 'high',
             startTime: Date.now() - (7 * 60 * 1000), // 7m ago
             assignedTo: "Frank Castle",
@@ -565,7 +565,7 @@ const SupervisorDashboard = () => {
                             <div className="grid grid-cols-3 gap-4">
                                 <div className="bg-slate-50 rounded-lg p-3 border border-slate-100 flex items-center justify-between">
                                     <div>
-                                        <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">Total Staff</p>
+                                        <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">Total Workforce</p>
                                         <p className="text-2xl font-bold text-slate-800">{displayStats.total}</p>
                                         <div className="flex items-center gap-2 mt-1 text-[10px]">
                                             <span className="text-emerald-600 font-bold">{displayStats.loggedIn} Online</span>
@@ -585,7 +585,7 @@ const SupervisorDashboard = () => {
                                 </div>
                                 <div className="bg-emerald-50 rounded-lg p-3 border border-emerald-100 flex items-center justify-between">
                                     <div>
-                                        <p className="text-xs text-emerald-600 font-bold uppercase tracking-wider">Active</p>
+                                        <p className="text-xs text-emerald-600 font-bold uppercase tracking-wider">Active Workforce</p>
                                         <p className="text-2xl font-bold text-emerald-700">{displayStats.working}</p>
                                     </div>
                                     <div className="p-2 bg-white rounded-full text-emerald-500 shadow-sm">
